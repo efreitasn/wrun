@@ -1,0 +1,4 @@
+github.com/efreitasn/customo v1.0.0 h1:/DC+aXVDKpvyQ0EFv17UcXkTgZRfexgEFNuPqNV6z88=
+github.com/efreitasn/customo v1.0.0/go.mod h1:y3KO/ZGOdUfBw6BVliDxpgmL6p5t4/dHskFX8Qc2z2U=
+github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I=
+github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
