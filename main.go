@@ -6,8 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-
-	"github.com/pkg/errors"
 )
 
 func main() {
@@ -39,7 +37,7 @@ func main() {
 		case err := <-cmdCompleted:
 			if err != nil {
 				if !*silent {
-					logErr.Print(errors.WithMessage(err, "Error while running CMD"))
+					logErr.Print(fmt.Errorf("Error while running CMD: %w", err))
 					logEvt.Print(
 						fmt.Sprintf("CMD exited with %v", cmd.ProcessState.ExitCode()),
 					)
