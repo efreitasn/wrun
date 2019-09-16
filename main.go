@@ -22,6 +22,7 @@ func main() {
 		cmd.Stderr = NewCmdLogger(logCmdErr)
 	}
 
+	go func() { watch() }()
 	go func() {
 		err := cmd.Run()
 		cmdCompleted <- err
