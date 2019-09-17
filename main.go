@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"time"
 )
 
 func main() {
@@ -22,7 +23,6 @@ func main() {
 		cmd.Stderr = NewCmdLogger(logCmdErr)
 	}
 
-	go func() { watch() }()
 	go func() {
 		err := cmd.Run()
 		cmdCompleted <- err
@@ -31,26 +31,42 @@ func main() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals)
 
+	watcher, err := createWatcher()
+
+	if err != nil {
+		logErr.Fatalln("Error while creating the watcher.")
+	}
+
+	var timer *time.Timer
+
 	for {
 		select {
 		case s := <-signals:
 			cmd.Process.Signal(s)
+		case evt := <-watcher.Events:
+			logEvt.Println(evt)
+
+			if timer != nil {
+				timer.Stop()
+			}
+
+			timer = time.AfterFunc(time.Second, func() {
+				logEvt.Println("restart")
+			})
+		case <-watcher.Errors:
+			logErr.Fatalln("Error while watching files.")
 		case err := <-cmdCompleted:
 			if err != nil {
 				if !*silent {
-					logErr.Print(fmt.Errorf("Error while running CMD: %w", err))
-					logEvt.Print(
-						fmt.Sprintf("CMD exited with %v", cmd.ProcessState.ExitCode()),
-					)
+					logErr.Println(fmt.Errorf("Error while running CMD: %w", err))
+					logEvt.Printf("CMD exited with %v\n", cmd.ProcessState.ExitCode())
 				}
 
 				return
 			}
 
 			if !*silent {
-				logEvt.Print(
-					fmt.Sprintf("CMD exited with %v", cmd.ProcessState.ExitCode()),
-				)
+				logEvt.Printf("CMD exited with %v\n", cmd.ProcessState.ExitCode())
 			}
 
 			return
