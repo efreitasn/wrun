@@ -52,7 +52,5 @@ func main() {
 
 			cancel()
 		}
-
-		time.Sleep(time.Second)
 	}
 }
