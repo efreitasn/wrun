@@ -17,7 +17,7 @@ func watchDir(dir string, watcher *fsnotify.Watcher) error {
 	}
 
 	for _, entry := range entries {
-		if entry.IsDir() {
+		if entry.IsDir() && entry.Name() != ".git" {
 			err := watchDir(path.Join(dir, entry.Name()), watcher)
 
 			if err != nil {
