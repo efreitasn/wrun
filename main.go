@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"syscall"
-	"time"
 )
 
 func main() {
