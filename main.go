@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -22,6 +23,8 @@ func main() {
 
 	cmdStdout := NewCmdLogger(logCmdOut)
 	cmdStderr := NewCmdLogger(logCmdErr)
+
+	go watcher.Start(time.Millisecond)
 
 	for {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -41,13 +44,8 @@ func main() {
 		case <-deadlySignals:
 			cancel()
 			return
-		case e := <-watcher.Events:
-			// Ignore files
-			// if e.Name == "filetoignore" {
-			// 	goto ss
-			// }
-
-			logEvt.Printf("%v: %v", e.Op, e.Name)
+		case e := <-watcher.Event:
+			logEvt.Println(e)
 
 			cancel()
 		}

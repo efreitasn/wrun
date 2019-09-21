@@ -1,52 +1,19 @@
 package main
 
 import (
-	"io/ioutil"
-	"os"
-	"path"
-
-	"github.com/fsnotify/fsnotify"
+	watcherLib "github.com/radovskyb/watcher"
 )
 
-func watchDir(dir string, watcher *fsnotify.Watcher) error {
-	watcher.Add(dir)
-	entries, err := ioutil.ReadDir(dir)
+func createWatcher() (*watcherLib.Watcher, error) {
+	watcher := watcherLib.New()
 
-	if err != nil {
-		return err
-	}
+	watcher.SetMaxEvents(1)
 
-	for _, entry := range entries {
-		if entry.IsDir() && entry.Name() != ".git" {
-			err := watchDir(path.Join(dir, entry.Name()), watcher)
+	watcher.FilterOps(watcherLib.Create, watcherLib.Remove, watcherLib.Rename)
+	watcher.AddRecursive(".")
 
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-func createWatcher() (*fsnotify.Watcher, error) {
-	dir, err := os.Getwd()
-
-	if err != nil {
-		return nil, err
-	}
-
-	watcher, err := fsnotify.NewWatcher()
-
-	if err != nil {
-		return nil, err
-	}
-
-	err = watchDir(dir, watcher)
-
-	if err != nil {
-		return nil, err
-	}
+	watcher.Ignore("./.git")
+	watcher.IgnoreHiddenFiles(true)
 
 	return watcher, nil
 }
