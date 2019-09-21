@@ -19,6 +19,18 @@ var logCmdErr = log.New(os.Stdout, customo.Format(
 	customo.AttrFgColor4BitsRed,
 ), 0)
 
+var logPreCmdOut = log.New(os.Stdout, customo.Format(
+	"PRECMD: ",
+	customo.AttrBold,
+	customo.AttrFgColor4BitsGreen,
+), 0)
+
+var logPreCmdErr = log.New(os.Stdout, customo.Format(
+	"PRECMD: ",
+	customo.AttrBold,
+	customo.AttrFgColor4BitsRed,
+), 0)
+
 var logErr = log.New(os.Stderr, customo.Format(
 	"ERR: ",
 	customo.AttrBold,
