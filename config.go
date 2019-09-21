@@ -12,8 +12,7 @@ type Config struct {
 	PreCmd []string `json:"PRECMD"`
 }
 
-// GetConfig returns the config file's data.
-func GetConfig() (*Config, error) {
+func getConfig() (*Config, error) {
 	f, err := os.Open("wrun.json")
 	if err != nil {
 		if os.IsNotExist(err) {
