@@ -10,7 +10,7 @@ You can install it using go
 go get -u github.com/efreitasn/wrun
 ```
 
-or download one of the binaries available at the [releases page](/releases).
+or download one of the binaries available on the [releases page](https://github.com/efreitasn/wrun/releases).
 
 ## How to use
 Add a wrun.json file with the following structure in the directory to be watched.
