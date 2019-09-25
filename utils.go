@@ -10,6 +10,7 @@ import (
 func terminateCMD(cmd *exec.Cmd, mx *sync.Mutex, done chan struct{}, killFn func()) {
 	mx.Lock()
 	if cmd == nil || cmd.Process == nil {
+		mx.Unlock()
 		return
 	}
 
