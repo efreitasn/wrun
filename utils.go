@@ -24,6 +24,7 @@ func terminateCMD(cmd *exec.Cmd, mx *sync.Mutex, done chan struct{}, killFn func
 		return
 	case <-timer.C:
 		killFn()
+		<-done
 		return
 	}
 }

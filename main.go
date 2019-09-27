@@ -79,7 +79,7 @@ func main() {
 					return
 				}
 
-				err = preCmd.Wait()
+				_, err = preCmd.Process.Wait()
 
 				preCmdDone <- struct{}{}
 
@@ -101,7 +101,7 @@ func main() {
 				return
 			}
 
-			err = cmd.Wait()
+			_, err = cmd.Process.Wait()
 
 			if err != nil {
 				logErr.Println(fmt.Errorf("Error while running CMD: %w", err))
