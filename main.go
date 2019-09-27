@@ -112,14 +112,14 @@ func main() {
 
 		select {
 		case <-deadlySignals:
-			terminateCMD(preCmd, &cmdMx, preCmdDone, cancel)
-			terminateCMD(cmd, &cmdMx, cmdDone, cancel)
+			terminateCMD(preCmd, &cmdMx, preCmdDone, cancel, config.DelayToKill)
+			terminateCMD(cmd, &cmdMx, cmdDone, cancel, config.DelayToKill)
 			return
 		case e := <-watcher.Event:
 			logEvt.Println(e)
 
-			terminateCMD(preCmd, &cmdMx, preCmdDone, cancel)
-			terminateCMD(cmd, &cmdMx, cmdDone, cancel)
+			terminateCMD(preCmd, &cmdMx, preCmdDone, cancel, config.DelayToKill)
+			terminateCMD(cmd, &cmdMx, cmdDone, cancel, config.DelayToKill)
 		}
 	}
 }

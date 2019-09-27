@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func terminateCMD(cmd *exec.Cmd, mx *sync.Mutex, done chan struct{}, killFn func()) {
+func terminateCMD(cmd *exec.Cmd, mx *sync.Mutex, done chan struct{}, killFn func(), delayToKill float64) {
 	mx.Lock()
 	if cmd == nil || cmd.Process == nil {
 		mx.Unlock()
@@ -17,7 +17,7 @@ func terminateCMD(cmd *exec.Cmd, mx *sync.Mutex, done chan struct{}, killFn func
 	cmd.Process.Signal(os.Interrupt)
 	mx.Unlock()
 
-	timer := time.NewTimer(time.Second * 10)
+	timer := time.NewTimer(time.Duration(float64(time.Millisecond) * delayToKill))
 
 	select {
 	case <-done:

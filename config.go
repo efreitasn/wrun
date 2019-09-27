@@ -8,8 +8,9 @@ import (
 
 // Config is the config file's structure.
 type Config struct {
-	Cmd    []string `json:"CMD"`
-	PreCmd []string `json:"PRECMD"`
+	Cmd         []string `json:"CMD"`
+	PreCmd      []string `json:"PRECMD"`
+	DelayToKill float64  `json:"DELAYTOKILL"`
 }
 
 func getConfig() (*Config, error) {

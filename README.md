@@ -24,7 +24,8 @@ Add a wrun.json file with the following structure in the directory to be watched
   "CMD": [
     "echo",
     "foobar"
-  ]
+  ],
+  "DELAYTOKILL": 5000
 }
 ```
 
