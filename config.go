@@ -10,7 +10,7 @@ import (
 type Config struct {
 	Cmd         []string `json:"CMD"`
 	PreCmd      []string `json:"PRECMD"`
-	DelayToKill float64  `json:"DELAYTOKILL"`
+	DelayToKill float64  `json:"delayToKill"`
 }
 
 func getConfig() (*Config, error) {
