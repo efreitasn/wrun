@@ -74,20 +74,26 @@ func main() {
 
 				if err != nil {
 					logErr.Println(fmt.Errorf("Error while starting PRECMD: %w", err))
-					logEvt.Println("CMD will be skipped due to PRECMD error")
 
-					return
+					if !config.SkipPreCmdErr {
+						logEvt.Println("CMD will be skipped due to PRECMD error")
+
+						return
+					}
 				}
 
-				_, err = preCmd.Process.Wait()
+				err = preCmd.Wait()
 
 				preCmdDone <- struct{}{}
 
 				if err != nil {
 					logErr.Println(fmt.Errorf("Error while running PRECMD: %w", err))
-					logEvt.Println("CMD will be skipped due to PRECMD error")
 
-					return
+					if !config.SkipPreCmdErr {
+						logEvt.Println("CMD will be skipped due to PRECMD error")
+
+						return
+					}
 				}
 			}
 
@@ -101,7 +107,7 @@ func main() {
 				return
 			}
 
-			_, err = cmd.Process.Wait()
+			err = cmd.Wait()
 
 			if err != nil {
 				logErr.Println(fmt.Errorf("Error while running CMD: %w", err))
