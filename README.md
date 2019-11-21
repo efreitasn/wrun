@@ -25,7 +25,8 @@ Add a wrun.json file with the following structure in the directory to be watched
     "echo",
     "foobar"
   ],
-  "delayToKill": 5000
+  "delayToKill": 5000,
+  "skpiPRECMDErr": false
 }
 ```
 
