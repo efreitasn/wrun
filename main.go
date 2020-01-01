@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"io"
+	"log"
 	"os"
 	"os/exec"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -14,8 +14,9 @@ import (
 func main() {
 	// Config
 	config, err := getConfig()
+
 	if err != nil {
-		logErr.Println(fmt.Errorf("Error while reading config file: %w", err))
+		logErr.Printf("config file: %v\n", err)
 
 		return
 	}
@@ -24,108 +25,142 @@ func main() {
 	deadlySignals := make(chan os.Signal, 1)
 	signal.Notify(deadlySignals, os.Interrupt, syscall.SIGTERM)
 
-	// Std*
-	cmdStdout := NewCmdLogger(logCmdOut)
-	cmdStderr := NewCmdLogger(logCmdErr)
-
-	preCmdStdout := NewCmdLogger(logPreCmdOut)
-	preCmdStderr := NewCmdLogger(logPreCmdErr)
-
 	// Watcher
-	watcher, err := CreateWatcher()
+	watcher, err := createWatcher()
 	if err != nil {
-		logErr.Println(fmt.Errorf("Error while creating watcher: %w", err))
+		logErr.Printf("watcher: %v\n", err)
 
 		return
 	}
+
 	// The returned error is ignored here purposely
 	go watcher.Start(500 * time.Millisecond)
 
 	for {
-		ctx, cancel := context.WithCancel(context.Background())
-
-		// A mutex is used because terminateCMD() sends a signal to an exec.Cmd and
-		// exec.Cmd.Start() writes to exec.Cmd. That is also the reason why exec.Cmd.Start() and
-		// exec.Cmd.Wait() were used instead of just exec.Cmd.Run().
-		var cmdMx sync.Mutex
-
-		// PRECMD
-		var preCmd *exec.Cmd
-		preCmdDone := make(chan struct{}, 1)
-
-		if len(config.PreCmd) > 0 {
-			preCmd = exec.CommandContext(ctx, config.PreCmd[0], config.PreCmd[1:]...)
-			preCmd.Stdout = preCmdStdout
-			preCmd.Stderr = preCmdStderr
-		}
-
-		// CMD
-		cmd := exec.CommandContext(ctx, config.Cmd[0], config.Cmd[1:]...)
-		cmdDone := make(chan struct{}, 1)
-
-		cmd.Stdout = cmdStdout
-		cmd.Stderr = cmdStderr
+		// allCmdsForCurrentEvtCtx is used to indicate that all cmds related to the current event
+		// must be terminated as soon as possible.
+		allCmdsForCurrentEvtCtx, cancelAllCmdsForCurrentEvtCtx := context.WithCancel(context.Background())
+		// allCmdsForCurrentEvtDone indicates that all cmds related to the current event have completed
+		// or been terminated.
+		allCmdsForCurrentEvtDone := make(chan struct{})
 
 		go func() {
-			if preCmd != nil {
-				cmdMx.Lock()
-				err := preCmd.Start()
-				cmdMx.Unlock()
+			for i, cmdItem := range config.cmds {
+				logEvt.Printf("starting cmds[%v]\n", i)
+				err := runCmd(allCmdsForCurrentEvtCtx, cmdItem)
 
 				if err != nil {
-					logErr.Println(fmt.Errorf("Error while starting PRECMD: %w", err))
+					logErr.Printf("cmds[%v]: %v\n", i, err)
 
-					if !config.SkipPreCmdErr {
-						logEvt.Println("CMD will be skipped due to PRECMD error")
+					if cmdItem.fatalIfErr {
+						logEvt.Println("the remaining cmds will be skipped due to the fatalIfErr flag")
 
-						return
+						break
 					}
-				}
 
-				err = preCmd.Wait()
-
-				preCmdDone <- struct{}{}
-
-				if err != nil {
-					logErr.Println(fmt.Errorf("Error while running PRECMD: %w", err))
-
-					if !config.SkipPreCmdErr {
-						logEvt.Println("CMD will be skipped due to PRECMD error")
-
-						return
-					}
+					continue
 				}
 			}
 
-			cmdMx.Lock()
-			err := cmd.Start()
-			cmdMx.Unlock()
-
-			if err != nil {
-				logErr.Println(fmt.Errorf("Error while starting CMD: %w", err))
-
-				return
-			}
-
-			err = cmd.Wait()
-
-			if err != nil {
-				logErr.Println(fmt.Errorf("Error while running CMD: %w", err))
-			}
-
-			cmdDone <- struct{}{}
+			close(allCmdsForCurrentEvtDone)
 		}()
 
 		select {
 		case <-deadlySignals:
-			terminateCMD(preCmd, &cmdMx, preCmdDone, cancel, config.DelayToKill)
-			terminateCMD(cmd, &cmdMx, cmdDone, cancel, config.DelayToKill)
+			select {
+			case <-allCmdsForCurrentEvtDone:
+			default:
+				cancelAllCmdsForCurrentEvtCtx()
+				<-allCmdsForCurrentEvtDone
+			}
+
 			return
 		case e := <-watcher.Event:
 			logEvt.Println(e)
 
-			terminateCMD(preCmd, &cmdMx, preCmdDone, cancel, config.DelayToKill)
-			terminateCMD(cmd, &cmdMx, cmdDone, cancel, config.DelayToKill)
+			cancelAllCmdsForCurrentEvtCtx()
+			<-allCmdsForCurrentEvtDone
+		}
+	}
+}
+
+// runCmd runs the given cmd.
+// ctx -> indicates that the cmd must be terminated as soon as possible.
+// cmdCtx -> indicates that the cmd must be terminated immediately.
+// cmdDone -> indicates that the cmd has completed or been terminated.
+func runCmd(ctx context.Context, cmd cmd) error {
+	cmdCtx, killCmd := context.WithCancel(context.Background())
+	defer killCmd()
+	cmdDone := make(chan error)
+
+	cmdExec := exec.CommandContext(cmdCtx, cmd.terms[0], cmd.terms[1:]...)
+
+	outPipe, err := cmdExec.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	go logCmdStd(cmdCtx, logCmdOut, outPipe)
+
+	errPipe, err := cmdExec.StderrPipe()
+	if err != nil {
+		return err
+	}
+	go logCmdStd(cmdCtx, logCmdErr, errPipe)
+
+	err = cmdExec.Start()
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		cmdDone <- cmdExec.Wait()
+		close(cmdDone)
+	}()
+
+	select {
+	case <-ctx.Done():
+		cmdExec.Process.Signal(os.Interrupt)
+
+		timer := time.NewTimer(time.Duration(int(time.Millisecond) * cmd.delayToKill))
+
+		select {
+		case <-timer.C:
+			killCmd()
+
+			if err = <-cmdDone; err != nil {
+				return err
+			}
+		case err = <-cmdDone:
+			return err
+		}
+	case err := <-cmdDone:
+		return err
+	}
+
+	return nil
+}
+
+func logCmdStd(ctx context.Context, l *log.Logger, std io.Reader) {
+	bs := make([]byte, 4096)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		n, err := std.Read(bs)
+		if err != nil {
+			return
+		}
+
+		nBs := bs[0:n]
+
+		if nBs[len(nBs)-1] == '\n' {
+			l.Print(string(nBs))
+		} else {
+			l.Println(string(bs))
 		}
 	}
 }

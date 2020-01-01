@@ -1,7 +1,5 @@
 # wrun
-wrun is a tool to run commands whenever the files in a directory change.
-
-**This is still an early project and the API is not stable, i.e., breaking changes might happen.**
+wrun is a tool to run commands whenever files in a directory change.
 
 ## Installing
 You can install it using go

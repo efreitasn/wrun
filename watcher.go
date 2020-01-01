@@ -4,8 +4,7 @@ import (
 	watcherLib "github.com/radovskyb/watcher"
 )
 
-// CreateWatcher creates a watcher.
-func CreateWatcher() (*watcherLib.Watcher, error) {
+func createWatcher() (*watcherLib.Watcher, error) {
 	watcher := watcherLib.New()
 
 	watcher.SetMaxEvents(1)
