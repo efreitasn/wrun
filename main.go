@@ -9,9 +9,33 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/efreitasn/cfop"
 )
 
 func main() {
+	set := cfop.NewSubcmdsSet()
+
+	set.Add(
+		"start",
+		"Starts watching files in the current directory.",
+		cfop.NewCmd(cfop.CmdConfig{
+			Fn: startCmd,
+		}),
+	)
+
+	err := cfop.Init(
+		"wrun",
+		"Run commands whenever files change",
+		os.Args,
+		set,
+	)
+	if err != nil {
+		logErr.Println(err)
+	}
+}
+
+func startCmd(cts *cfop.CmdTermsSet) {
 	// Config
 	config, err := getConfig()
 
