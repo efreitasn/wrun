@@ -5,10 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
+	"sync"
 )
 
 const defaultDelayToKill = 1000
 const configFileName = "wrun.json"
+
+// alwaysIgnoreGlobs is a list of glob patterns that are always ignored.
+var alwaysIgnoreGlobs = []string{
+	".git",
+	"wrun.json",
+}
 
 type configFileCmd struct {
 	DelayToKill *int     `json:"delayToKill"`
@@ -20,6 +29,7 @@ type configFile struct {
 	DelayToKill *int            `json:"delayToKill"`
 	FatalIfErr  bool            `json:"fatalIfErr"`
 	Cmds        []configFileCmd `json:"cmds"`
+	IgnoreGlobs []string        `json:"ignoreGlobs"`
 }
 
 type cmd struct {
@@ -30,7 +40,8 @@ type cmd struct {
 }
 
 type config struct {
-	cmds []cmd
+	cmds        []cmd
+	ignoreGlobs []string
 }
 
 func getConfig() (*config, error) {
@@ -111,7 +122,66 @@ func parseConfigFile(cf configFile) config {
 		})
 	}
 
+	ignoreGlobs := alwaysIgnoreGlobs
+	if cf.IgnoreGlobs != nil {
+		ignoreGlobs = append(ignoreGlobs, cf.IgnoreGlobs...)
+	}
+
 	return config{
-		cmds: cmds,
+		ignoreGlobs: ignoreGlobs,
+		cmds:        cmds,
+	}
+}
+
+func getGlobMatches(c *config) ([]string, error) {
+	var wg sync.WaitGroup
+	done := make(chan struct{})
+	matchesCh := make(chan []string)
+	errCh := make(chan error)
+	globPatterns := make(chan string)
+	numWorkers := runtime.GOMAXPROCS(0)
+
+	wg.Add(numWorkers)
+
+	go func() {
+		for _, globPattern := range c.ignoreGlobs {
+			globPatterns <- globPattern
+		}
+		close(globPatterns)
+	}()
+
+	for i := 0; i < numWorkers; i++ {
+		go func() {
+			for globPattern := range globPatterns {
+				ms, err := filepath.Glob(globPattern)
+				if err != nil {
+					errCh <- err
+
+					return
+				}
+
+				matchesCh <- ms
+			}
+
+			wg.Done()
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	res := make([]string, 0)
+
+	for {
+		select {
+		case matches := <-matchesCh:
+			res = append(res, matches...)
+		case err := <-errCh:
+			return nil, err
+		case <-done:
+			return res, nil
+		}
 	}
 }

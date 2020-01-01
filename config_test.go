@@ -20,6 +20,7 @@ func TestParseConfigFile(t *testing.T) {
 			configFile{
 				DelayToKill: &delay700,
 				FatalIfErr:  true,
+				IgnoreGlobs: []string{"aa*"},
 				Cmds: []configFileCmd{
 					configFileCmd{
 						Terms: []string{"foo", "bar"},
@@ -27,6 +28,7 @@ func TestParseConfigFile(t *testing.T) {
 				},
 			},
 			config{
+				ignoreGlobs: append(alwaysIgnoreGlobs, "aa*"),
 				cmds: []cmd{
 					cmd{
 						terms:       []string{"foo", "bar"},
@@ -47,6 +49,7 @@ func TestParseConfigFile(t *testing.T) {
 				},
 			},
 			config{
+				ignoreGlobs: alwaysIgnoreGlobs,
 				cmds: []cmd{
 					cmd{
 						terms:       []string{},
@@ -72,6 +75,7 @@ func TestParseConfigFile(t *testing.T) {
 				},
 			},
 			config{
+				ignoreGlobs: alwaysIgnoreGlobs,
 				cmds: []cmd{
 					cmd{
 						terms:       []string{"foo", "bar"},
@@ -103,6 +107,7 @@ func TestParseConfigFile(t *testing.T) {
 				},
 			},
 			config{
+				ignoreGlobs: alwaysIgnoreGlobs,
 				cmds: []cmd{
 					cmd{
 						terms:       []string{"foo", "bar"},
@@ -131,6 +136,7 @@ func TestParseConfigFile(t *testing.T) {
 				},
 			},
 			config{
+				ignoreGlobs: alwaysIgnoreGlobs,
 				cmds: []cmd{
 					cmd{
 						terms:       []string{"foo", "bar"},

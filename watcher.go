@@ -4,13 +4,15 @@ import (
 	watcherLib "github.com/radovskyb/watcher"
 )
 
-func createWatcher() (*watcherLib.Watcher, error) {
+func createWatcher(ignoreFiles []string) (*watcherLib.Watcher, error) {
 	watcher := watcherLib.New()
 
 	watcher.SetMaxEvents(1)
 
 	watcher.FilterOps(watcherLib.Write)
-	watcher.IgnoreHiddenFiles(true)
+	if ignoreFiles != nil {
+		watcher.Ignore(ignoreFiles...)
+	}
 
 	err := watcher.AddRecursive(".")
 	if err != nil {

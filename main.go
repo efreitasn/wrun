@@ -21,12 +21,19 @@ func main() {
 		return
 	}
 
+	globMatches, err := getGlobMatches(config)
+	if err != nil {
+		logErr.Printf("config file: %v\n", err)
+
+		return
+	}
+
 	// Signals
 	deadlySignals := make(chan os.Signal, 1)
 	signal.Notify(deadlySignals, os.Interrupt, syscall.SIGTERM)
 
 	// Watcher
-	watcher, err := createWatcher()
+	watcher, err := createWatcher(globMatches)
 	if err != nil {
 		logErr.Printf("watcher: %v\n", err)
 
@@ -69,6 +76,8 @@ func main() {
 		case <-deadlySignals:
 			select {
 			case <-allCmdsForCurrentEvtDone:
+				// not really necessary
+				cancelAllCmdsForCurrentEvtCtx()
 			default:
 				cancelAllCmdsForCurrentEvtCtx()
 				<-allCmdsForCurrentEvtDone
