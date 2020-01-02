@@ -39,6 +39,14 @@ func main() {
 		}),
 	)
 
+	set.Add(
+		"version",
+		"Prints the version",
+		cfop.NewCmd(cfop.CmdConfig{
+			Fn: cmds.Version,
+		}),
+	)
+
 	err := cfop.Init(
 		"wrun",
 		"Run commands whenever files change",
