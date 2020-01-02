@@ -10,8 +10,9 @@ import (
 	"sync"
 )
 
-const defaultDelayToKill = 1000
-const configFileName = "wrun.json"
+var defaultDelayToKill = 1000
+var configFileName = "wrun.json"
+var configFileSchemaURL = "https://github.com/efreitasn/wrun/blob/master/wrun.schema.json"
 
 // alwaysIgnoreGlobs is a list of glob patterns that are always ignored.
 var alwaysIgnoreGlobs = []string{
@@ -26,6 +27,7 @@ type configFileCmd struct {
 }
 
 type configFile struct {
+	Schema      string          `json:"$schema"`
 	DelayToKill *int            `json:"delayToKill"`
 	FatalIfErr  bool            `json:"fatalIfErr"`
 	Cmds        []configFileCmd `json:"cmds"`
@@ -88,6 +90,34 @@ func GetConfig() (*Config, error) {
 	c := parseConfigFile(cf)
 
 	return &c, nil
+}
+
+// CreateConfigFile creates a config file in the current directory with default data.
+func CreateConfigFile() error {
+	file, err := os.OpenFile(
+		configFileName,
+		os.O_CREATE|os.O_EXCL|os.O_WRONLY,
+		0666,
+	)
+	if err != nil {
+		return err
+	}
+
+	cf := configFile{
+		DelayToKill: &defaultDelayToKill,
+		FatalIfErr:  false,
+		Cmds:        []configFileCmd{},
+		IgnoreGlobs: []string{},
+		Schema:      configFileSchemaURL,
+	}
+
+	enc := json.NewEncoder(file)
+	enc.SetIndent("", "  ")
+	if err = enc.Encode(cf); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // parseConfigFile transforms a configFile to a config.

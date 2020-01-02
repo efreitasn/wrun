@@ -19,6 +19,14 @@ func main() {
 		}),
 	)
 
+	set.Add(
+		"init",
+		"Creates a config file in the current directory",
+		cfop.NewCmd(cfop.CmdConfig{
+			Fn: cmds.Init,
+		}),
+	)
+
 	err := cfop.Init(
 		"wrun",
 		"Run commands whenever files change",
