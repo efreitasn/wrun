@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LATEST_TAG=$(git tag | tail -1)
+VERSION=$(git describe --abbrev=0 --tags)
 TARGETS=("linux/amd64" "darwin/amd64")
 
 for TARGET in "${TARGETS[@]}"; do
@@ -8,7 +8,7 @@ for TARGET in "${TARGETS[@]}"; do
   OS=${TARGET_PARTS[0]}
   ARCH=${TARGET_PARTS[1]}
 
-  GOOS=$OS GOARCH=$ARCH go build -o "build/wrun-${LATEST_TAG}-${OS}-${ARCH}" ./cmd/wrun
+  make -B build NAME="build/wrun-${VERSION}-${OS}-${ARCH}" GOOS=$OS GOARCH=$ARCH
 
   if [ $? -ne 0 ]; then
     echo "Error while creating binary for ${OS}-${ARCH}."
