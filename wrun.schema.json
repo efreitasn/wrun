@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "$id": "https://github.com/efreitasn/wrun/blob/master/wrun.schema.json",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "delayToKill": {
+      "type": "integer",
+      "description": "Time in milliseconds to wait after sending a SIGINT and before sending a SIGKILL to a command. Can be defined both command-wide and global-wide. The command version, if it exists, takes precedence. Defaults to 1000."
+    },
+    "fatalIfErr": {
+      "type": "boolean",
+      "description": "Whether to skip subsequent commands in case the current one returns an error. Can be defined both command-wide and global-wide. The command version, if it exists, takes precedence. Defaults to false."
+    },
+    "cmds": {
+      "type": "array",
+      "description": "List of commands to be executed sequentially.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "terms": {
+            "type": "array",
+            "description": "The terms of a command.",
+            "examples": [
+              ["echo", "hello", "world"]
+            ],
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "delayToKill": {
+            "$ref": "#/properties/delayToKill"
+          },
+          "fatalIfErr": {
+            "$ref": "#/properties/fatalIfErr"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "terms"
+        ]
+      },
+      "minItems": 1
+    },
+    "ignoreGlobs": {
+      "type": "array",
+      "description": "List of glob patterns of paths to be ignored when watching.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "cmds"
+  ]
+}
