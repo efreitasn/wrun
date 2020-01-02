@@ -16,6 +16,18 @@ func main() {
 		"Starts watching files in the current directory.",
 		cfop.NewCmd(cfop.CmdConfig{
 			Fn: cmds.Start,
+			Flags: []cfop.CmdFlag{
+				cfop.CmdFlag{
+					Name:        "no-events",
+					Alias:       "ne",
+					Description: "whether to log events",
+				},
+				cfop.CmdFlag{
+					Name:        "quiet",
+					Alias:       "q",
+					Description: "whether to log anything at all",
+				},
+			},
 		}),
 	)
 

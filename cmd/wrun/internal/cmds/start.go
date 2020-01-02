@@ -18,6 +18,10 @@ import (
 
 // Start executes the start command.
 func Start(cts *cfop.CmdTermsSet) {
+	// Flags
+	shouldLog := !cts.GetFlag("quiet")
+	shouldLogEvents := shouldLog && !cts.GetFlag("no-events")
+
 	// Config
 	c, err := config.GetConfig()
 
@@ -59,14 +63,20 @@ func Start(cts *cfop.CmdTermsSet) {
 
 		go func() {
 			for i, cmdItem := range c.Cmds {
-				logs.Evt.Printf("starting cmds[%v]\n", i)
-				err := runCmd(allCmdsForCurrentEvtCtx, cmdItem)
+				if shouldLogEvents {
+					logs.Evt.Printf("starting cmds[%v]\n", i)
+				}
+				err := runCmd(allCmdsForCurrentEvtCtx, cmdItem, shouldLog)
 
 				if err != nil {
-					logs.Err.Printf("cmds[%v]: %v\n", i, err)
+					if shouldLog {
+						logs.Err.Printf("cmds[%v]: %v\n", i, err)
+					}
 
 					if cmdItem.FatalIfErr {
-						logs.Evt.Println("the remaining cmds will be skipped due to the fatalIfErr flag")
+						if shouldLogEvents {
+							logs.Evt.Println("the remaining cmds will be skipped due to the fatalIfErr flag")
+						}
 
 						break
 					}
@@ -91,7 +101,9 @@ func Start(cts *cfop.CmdTermsSet) {
 
 			return
 		case e := <-watcher.Event:
-			logs.Evt.Println(e)
+			if shouldLogEvents {
+				logs.Evt.Println(e)
+			}
 
 			cancelAllCmdsForCurrentEvtCtx()
 			<-allCmdsForCurrentEvtDone
@@ -103,26 +115,28 @@ func Start(cts *cfop.CmdTermsSet) {
 // ctx -> indicates that the cmd must be terminated as soon as possible.
 // cmdCtx -> indicates that the cmd must be terminated immediately.
 // cmdDone -> indicates that the cmd has completed or been terminated.
-func runCmd(ctx context.Context, cmd config.Cmd) error {
+func runCmd(ctx context.Context, cmd config.Cmd, shouldLog bool) error {
 	cmdCtx, killCmd := context.WithCancel(context.Background())
 	defer killCmd()
 	cmdDone := make(chan error)
 
 	cmdExec := exec.CommandContext(cmdCtx, cmd.Terms[0], cmd.Terms[1:]...)
 
-	outPipe, err := cmdExec.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	go logCmdStd(cmdCtx, logs.CmdOut, outPipe)
+	if shouldLog {
+		outPipe, err := cmdExec.StdoutPipe()
+		if err != nil {
+			return err
+		}
+		go logCmdStd(cmdCtx, logs.CmdOut, outPipe)
 
-	errPipe, err := cmdExec.StderrPipe()
-	if err != nil {
-		return err
+		errPipe, err := cmdExec.StderrPipe()
+		if err != nil {
+			return err
+		}
+		go logCmdStd(cmdCtx, logs.CmdErr, errPipe)
 	}
-	go logCmdStd(cmdCtx, logs.CmdErr, errPipe)
 
-	err = cmdExec.Start()
+	err := cmdExec.Start()
 	if err != nil {
 		return err
 	}
