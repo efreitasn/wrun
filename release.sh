@@ -8,7 +8,7 @@ for TARGET in "${TARGETS[@]}"; do
   OS=${TARGET_PARTS[0]}
   ARCH=${TARGET_PARTS[1]}
 
-  GOOS=$OS GOARCH=$ARCH go build -o "build/wrun-${LATEST_TAG}-${OS}-${ARCH}" .
+  GOOS=$OS GOARCH=$ARCH go build -o "build/wrun-${LATEST_TAG}-${OS}-${ARCH}" ./cmd/wrun
 
   if [ $? -ne 0 ]; then
     echo "Error while creating binary for ${OS}-${ARCH}."

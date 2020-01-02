@@ -1,4 +1,4 @@
-package main
+package cmds
 
 import (
 	"context"
@@ -11,43 +11,25 @@ import (
 	"time"
 
 	"github.com/efreitasn/cfop"
+	"github.com/efreitasn/wrun/internal/config"
+	"github.com/efreitasn/wrun/internal/logs"
+	watcherLib "github.com/radovskyb/watcher"
 )
 
-func main() {
-	set := cfop.NewSubcmdsSet()
-
-	set.Add(
-		"start",
-		"Starts watching files in the current directory.",
-		cfop.NewCmd(cfop.CmdConfig{
-			Fn: startCmd,
-		}),
-	)
-
-	err := cfop.Init(
-		"wrun",
-		"Run commands whenever files change",
-		os.Args,
-		set,
-	)
-	if err != nil {
-		logErr.Println(err)
-	}
-}
-
-func startCmd(cts *cfop.CmdTermsSet) {
+// Start executes the start command.
+func Start(cts *cfop.CmdTermsSet) {
 	// Config
-	config, err := getConfig()
+	c, err := config.GetConfig()
 
 	if err != nil {
-		logErr.Printf("config file: %v\n", err)
+		logs.Err.Printf("config file: %v\n", err)
 
 		return
 	}
 
-	globMatches, err := getGlobMatches(config)
+	globMatches, err := config.GetGlobMatches(c)
 	if err != nil {
-		logErr.Printf("config file: %v\n", err)
+		logs.Err.Printf("config file: %v\n", err)
 
 		return
 	}
@@ -59,7 +41,7 @@ func startCmd(cts *cfop.CmdTermsSet) {
 	// Watcher
 	watcher, err := createWatcher(globMatches)
 	if err != nil {
-		logErr.Printf("watcher: %v\n", err)
+		logs.Err.Printf("watcher: %v\n", err)
 
 		return
 	}
@@ -76,15 +58,15 @@ func startCmd(cts *cfop.CmdTermsSet) {
 		allCmdsForCurrentEvtDone := make(chan struct{})
 
 		go func() {
-			for i, cmdItem := range config.cmds {
-				logEvt.Printf("starting cmds[%v]\n", i)
+			for i, cmdItem := range c.Cmds {
+				logs.Evt.Printf("starting cmds[%v]\n", i)
 				err := runCmd(allCmdsForCurrentEvtCtx, cmdItem)
 
 				if err != nil {
-					logErr.Printf("cmds[%v]: %v\n", i, err)
+					logs.Err.Printf("cmds[%v]: %v\n", i, err)
 
-					if cmdItem.fatalIfErr {
-						logEvt.Println("the remaining cmds will be skipped due to the fatalIfErr flag")
+					if cmdItem.FatalIfErr {
+						logs.Evt.Println("the remaining cmds will be skipped due to the fatalIfErr flag")
 
 						break
 					}
@@ -109,7 +91,7 @@ func startCmd(cts *cfop.CmdTermsSet) {
 
 			return
 		case e := <-watcher.Event:
-			logEvt.Println(e)
+			logs.Evt.Println(e)
 
 			cancelAllCmdsForCurrentEvtCtx()
 			<-allCmdsForCurrentEvtDone
@@ -121,24 +103,24 @@ func startCmd(cts *cfop.CmdTermsSet) {
 // ctx -> indicates that the cmd must be terminated as soon as possible.
 // cmdCtx -> indicates that the cmd must be terminated immediately.
 // cmdDone -> indicates that the cmd has completed or been terminated.
-func runCmd(ctx context.Context, cmd cmd) error {
+func runCmd(ctx context.Context, cmd config.Cmd) error {
 	cmdCtx, killCmd := context.WithCancel(context.Background())
 	defer killCmd()
 	cmdDone := make(chan error)
 
-	cmdExec := exec.CommandContext(cmdCtx, cmd.terms[0], cmd.terms[1:]...)
+	cmdExec := exec.CommandContext(cmdCtx, cmd.Terms[0], cmd.Terms[1:]...)
 
 	outPipe, err := cmdExec.StdoutPipe()
 	if err != nil {
 		return err
 	}
-	go logCmdStd(cmdCtx, logCmdOut, outPipe)
+	go logCmdStd(cmdCtx, logs.CmdOut, outPipe)
 
 	errPipe, err := cmdExec.StderrPipe()
 	if err != nil {
 		return err
 	}
-	go logCmdStd(cmdCtx, logCmdErr, errPipe)
+	go logCmdStd(cmdCtx, logs.CmdErr, errPipe)
 
 	err = cmdExec.Start()
 	if err != nil {
@@ -154,7 +136,7 @@ func runCmd(ctx context.Context, cmd cmd) error {
 	case <-ctx.Done():
 		cmdExec.Process.Signal(os.Interrupt)
 
-		timer := time.NewTimer(time.Duration(int(time.Millisecond) * cmd.delayToKill))
+		timer := time.NewTimer(time.Duration(int(time.Millisecond) * cmd.DelayToKill))
 
 		select {
 		case <-timer.C:
@@ -196,4 +178,22 @@ func logCmdStd(ctx context.Context, l *log.Logger, std io.Reader) {
 			l.Println(string(bs))
 		}
 	}
+}
+
+func createWatcher(ignoreFiles []string) (*watcherLib.Watcher, error) {
+	watcher := watcherLib.New()
+
+	watcher.SetMaxEvents(1)
+
+	watcher.FilterOps(watcherLib.Write)
+	if ignoreFiles != nil {
+		watcher.Ignore(ignoreFiles...)
+	}
+
+	err := watcher.AddRecursive(".")
+	if err != nil {
+		return nil, err
+	}
+
+	return watcher, nil
 }

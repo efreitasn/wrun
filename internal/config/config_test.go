@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"reflect"
@@ -14,7 +14,7 @@ func TestParseConfigFile(t *testing.T) {
 
 	tests := []struct {
 		cf  configFile
-		res config
+		res Config
 	}{
 		{
 			configFile{
@@ -27,13 +27,13 @@ func TestParseConfigFile(t *testing.T) {
 					},
 				},
 			},
-			config{
-				ignoreGlobs: append(alwaysIgnoreGlobs, "aa*"),
-				cmds: []cmd{
-					cmd{
-						terms:       []string{"foo", "bar"},
-						delayToKill: delay700,
-						fatalIfErr:  true,
+			Config{
+				IgnoreGlobs: append(alwaysIgnoreGlobs, "aa*"),
+				Cmds: []Cmd{
+					Cmd{
+						Terms:       []string{"foo", "bar"},
+						DelayToKill: delay700,
+						FatalIfErr:  true,
 					},
 				},
 			},
@@ -48,13 +48,13 @@ func TestParseConfigFile(t *testing.T) {
 					},
 				},
 			},
-			config{
-				ignoreGlobs: alwaysIgnoreGlobs,
-				cmds: []cmd{
-					cmd{
-						terms:       []string{},
-						delayToKill: delay700,
-						fatalIfErr:  true,
+			Config{
+				IgnoreGlobs: alwaysIgnoreGlobs,
+				Cmds: []Cmd{
+					Cmd{
+						Terms:       []string{},
+						DelayToKill: delay700,
+						FatalIfErr:  true,
 					},
 				},
 			},
@@ -74,18 +74,18 @@ func TestParseConfigFile(t *testing.T) {
 					},
 				},
 			},
-			config{
-				ignoreGlobs: alwaysIgnoreGlobs,
-				cmds: []cmd{
-					cmd{
-						terms:       []string{"foo", "bar"},
-						delayToKill: delay700,
-						fatalIfErr:  boolFalse,
+			Config{
+				IgnoreGlobs: alwaysIgnoreGlobs,
+				Cmds: []Cmd{
+					Cmd{
+						Terms:       []string{"foo", "bar"},
+						DelayToKill: delay700,
+						FatalIfErr:  boolFalse,
 					},
-					cmd{
-						terms:       []string{"bar", "foo"},
-						delayToKill: delay900,
-						fatalIfErr:  true,
+					Cmd{
+						Terms:       []string{"bar", "foo"},
+						DelayToKill: delay900,
+						FatalIfErr:  true,
 					},
 				},
 			},
@@ -106,18 +106,18 @@ func TestParseConfigFile(t *testing.T) {
 					},
 				},
 			},
-			config{
-				ignoreGlobs: alwaysIgnoreGlobs,
-				cmds: []cmd{
-					cmd{
-						terms:       []string{"foo", "bar"},
-						delayToKill: delay700,
-						fatalIfErr:  boolFalse,
+			Config{
+				IgnoreGlobs: alwaysIgnoreGlobs,
+				Cmds: []Cmd{
+					Cmd{
+						Terms:       []string{"foo", "bar"},
+						DelayToKill: delay700,
+						FatalIfErr:  boolFalse,
 					},
-					cmd{
-						terms:       []string{"bar", "foo"},
-						delayToKill: delay0,
-						fatalIfErr:  true,
+					Cmd{
+						Terms:       []string{"bar", "foo"},
+						DelayToKill: delay0,
+						FatalIfErr:  true,
 					},
 				},
 			},
@@ -135,18 +135,18 @@ func TestParseConfigFile(t *testing.T) {
 					},
 				},
 			},
-			config{
-				ignoreGlobs: alwaysIgnoreGlobs,
-				cmds: []cmd{
-					cmd{
-						terms:       []string{"foo", "bar"},
-						delayToKill: defaultDelayToKill,
-						fatalIfErr:  boolFalse,
+			Config{
+				IgnoreGlobs: alwaysIgnoreGlobs,
+				Cmds: []Cmd{
+					Cmd{
+						Terms:       []string{"foo", "bar"},
+						DelayToKill: defaultDelayToKill,
+						FatalIfErr:  boolFalse,
 					},
-					cmd{
-						terms:       []string{"bar", "foo"},
-						delayToKill: defaultDelayToKill,
-						fatalIfErr:  true,
+					Cmd{
+						Terms:       []string{"bar", "foo"},
+						DelayToKill: defaultDelayToKill,
+						FatalIfErr:  true,
 					},
 				},
 			},

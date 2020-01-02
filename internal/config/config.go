@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"encoding/json"
@@ -32,19 +32,22 @@ type configFile struct {
 	IgnoreGlobs []string        `json:"ignoreGlobs"`
 }
 
-type cmd struct {
-	terms []string
+// Cmd is a command from a config file.
+type Cmd struct {
+	Terms []string
 	// Milliseconds
-	delayToKill int
-	fatalIfErr  bool
+	DelayToKill int
+	FatalIfErr  bool
 }
 
-type config struct {
-	cmds        []cmd
-	ignoreGlobs []string
+// Config is the data from a config file.
+type Config struct {
+	Cmds        []Cmd
+	IgnoreGlobs []string
 }
 
-func getConfig() (*config, error) {
+// GetConfig returns the data from the config file.
+func GetConfig() (*Config, error) {
 	f, err := os.Open(configFileName)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -90,7 +93,7 @@ func getConfig() (*config, error) {
 // parseConfigFile transforms a configFile to a config.
 // Note that this function doesn't perform any kind of validation
 // on the configFile.
-func parseConfigFile(cf configFile) config {
+func parseConfigFile(cf configFile) Config {
 	globalDelayToKill := defaultDelayToKill
 	if cf.DelayToKill != nil {
 		globalDelayToKill = *cf.DelayToKill
@@ -98,7 +101,7 @@ func parseConfigFile(cf configFile) config {
 
 	globalFatalIfErr := cf.FatalIfErr
 
-	cmds := make([]cmd, 0, len(cf.Cmds))
+	cmds := make([]Cmd, 0, len(cf.Cmds))
 
 	for _, configCmd := range cf.Cmds {
 		delayToKill := globalDelayToKill
@@ -119,10 +122,10 @@ func parseConfigFile(cf configFile) config {
 			terms = make([]string, 0)
 		}
 
-		cmds = append(cmds, cmd{
-			terms:       terms,
-			delayToKill: delayToKill,
-			fatalIfErr:  fatalIfErr,
+		cmds = append(cmds, Cmd{
+			Terms:       terms,
+			DelayToKill: delayToKill,
+			FatalIfErr:  fatalIfErr,
 		})
 	}
 
@@ -131,13 +134,14 @@ func parseConfigFile(cf configFile) config {
 		ignoreGlobs = append(ignoreGlobs, cf.IgnoreGlobs...)
 	}
 
-	return config{
-		ignoreGlobs: ignoreGlobs,
-		cmds:        cmds,
+	return Config{
+		IgnoreGlobs: ignoreGlobs,
+		Cmds:        cmds,
 	}
 }
 
-func getGlobMatches(c *config) ([]string, error) {
+// GetGlobMatches returns glob matches from a Config.
+func GetGlobMatches(c *Config) ([]string, error) {
 	var wg sync.WaitGroup
 	done := make(chan struct{})
 	matchesCh := make(chan []string)
@@ -148,7 +152,7 @@ func getGlobMatches(c *config) ([]string, error) {
 	wg.Add(numWorkers)
 
 	go func() {
-		for _, globPattern := range c.ignoreGlobs {
+		for _, globPattern := range c.IgnoreGlobs {
 			globPatterns <- globPattern
 		}
 		close(globPatterns)
