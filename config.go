@@ -76,6 +76,10 @@ func getConfig() (*config, error) {
 		if cfCmd.Terms == nil {
 			return nil, fmt.Errorf("missing terms field in cmds[%v]", i)
 		}
+
+		if len(cfCmd.Terms) == 0 {
+			return nil, fmt.Errorf("terms field in cmds[%v] is empty", i)
+		}
 	}
 
 	c := parseConfigFile(cf)
