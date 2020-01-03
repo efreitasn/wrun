@@ -47,7 +47,7 @@
     },
     "ignoreGlobs": {
       "type": "array",
-      "description": "List of glob patterns of paths to be ignored when watching.",
+      "description": "List of glob patterns to be ignored when watching.",
       "items": {
         "type": "string"
       }
