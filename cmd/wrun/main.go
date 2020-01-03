@@ -49,7 +49,7 @@ func main() {
 
 	err := cfop.Init(
 		"wrun",
-		"Run commands whenever the contents in a the current directory change",
+		"Run commands whenever the contents in the current directory change",
 		os.Args,
 		set,
 	)
