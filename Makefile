@@ -1,6 +1,7 @@
-VERSION=$(shell git describe --abbrev=0 --tags)
-NAME="wrun"
+all: build
 
+build: VERSION=$(shell git describe --abbrev=0 --tags)
+build: NAME="wrun"
 build: export GOOS?=$(shell go env GOOS)
 build: export GOARCH?=$(shell go env GOARCH)
 build:
