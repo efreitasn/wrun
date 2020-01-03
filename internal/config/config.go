@@ -106,7 +106,9 @@ func CreateConfigFile() error {
 	cf := configFile{
 		DelayToKill: &defaultDelayToKill,
 		FatalIfErr:  false,
-		Cmds:        []configFileCmd{},
+		Cmds: []configFileCmd{configFileCmd{
+			Terms: []string{"echo", "hello", "world"},
+		}},
 		IgnoreGlobs: []string{},
 		Schema:      configFileSchemaURL,
 	}
