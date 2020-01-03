@@ -12,7 +12,7 @@ import (
 
 var defaultDelayToKill = 1000
 var configFileName = "wrun.json"
-var configFileSchemaURL = "https://github.com/efreitasn/wrun/blob/master/wrun.schema.json"
+var configFileSchemaURL = "https://raw.githubusercontent.com/efreitasn/wrun/master/wrun.schema.json"
 
 // alwaysIgnoreGlobs is a list of glob patterns that are always ignored.
 var alwaysIgnoreGlobs = []string{
@@ -103,11 +103,14 @@ func CreateConfigFile() error {
 		return err
 	}
 
+	cmdDefaultFatalIfErr := false
 	cf := configFile{
 		DelayToKill: &defaultDelayToKill,
 		FatalIfErr:  false,
 		Cmds: []configFileCmd{configFileCmd{
-			Terms: []string{"echo", "hello", "world"},
+			Terms:       []string{"echo", "hello", "world"},
+			DelayToKill: &defaultDelayToKill,
+			FatalIfErr:  &cmdDefaultFatalIfErr,
 		}},
 		IgnoreGlobs: []string{},
 		Schema:      configFileSchemaURL,
