@@ -1,6 +1,7 @@
 package watcher
 
 import (
+	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
@@ -413,6 +414,106 @@ func TestWatcher_deleteEvent(t *testing.T) {
 		err = os.RemoveAll(dirPath)
 		if err != nil {
 			t.Fatalf("error while removing %v: %v", dirPath, err)
+		}
+
+		select {
+		case e := <-events:
+			t.Fatalf("unexpected event %v", e)
+		case err := <-errs:
+			t.Fatalf("unexpected err: %v", err)
+		case <-w.Done:
+			t.Fatal("channel closed")
+		case <-time.After(eventTimeout):
+		}
+	})
+}
+
+func TestWatcher_modifyEvent(t *testing.T) {
+	t.Run("modify file", func(t *testing.T) {
+		err := os.MkdirAll("a/b/c/d/e", os.ModeDir|os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", "a/b/c/d/e", err)
+		}
+		defer os.RemoveAll("a")
+
+		err = os.MkdirAll("f/g/h/i/j", os.ModeDir|os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", "f/g/h/i/j", err)
+		}
+		defer os.RemoveAll("f")
+
+		filePath := path.Join("a/b/c/d/e", "a.txt")
+		_, err = os.Create(filePath)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", filePath, err)
+		}
+
+		w, err := New([]*regexp.Regexp{})
+		expectedErr := error(nil)
+		if err != expectedErr {
+			t.Fatalf("got %v, want %v", err, expectedErr)
+		}
+		defer w.Close()
+
+		events, errs := w.Start()
+
+		err = ioutil.WriteFile(filePath, []byte("foo"), os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error writing to %v: %v", filePath, err)
+		}
+
+		expectedEvent := ModifyEvent{
+			isDir: false,
+			path:  filePath,
+		}
+
+		select {
+		case e := <-events:
+			if e != expectedEvent {
+				t.Fatalf("got %v, want %v", e, expectedEvent)
+			}
+		case err := <-errs:
+			t.Fatalf("unexpected err: %v", err)
+		case <-w.Done:
+			t.Fatal("channel closed")
+		case <-time.After(eventTimeout):
+			t.Fatal("timeout reached waiting for event")
+		}
+	})
+
+	t.Run("modify file (regexp)", func(t *testing.T) {
+		err := os.MkdirAll("a/b/c/d/e", os.ModeDir|os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", "a/b/c/d/e", err)
+		}
+		defer os.RemoveAll("a")
+
+		err = os.MkdirAll("f/g/h/i/j", os.ModeDir|os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", "f/g/h/i/j", err)
+		}
+		defer os.RemoveAll("f")
+
+		filePath := path.Join("a/b/c/d/e", "a.txt")
+		_, err = os.Create(filePath)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", filePath, err)
+		}
+
+		w, err := New([]*regexp.Regexp{
+			regexp.MustCompile("^" + filePath + "$"),
+		})
+		expectedErr := error(nil)
+		if err != expectedErr {
+			t.Fatalf("got %v, want %v", err, expectedErr)
+		}
+		defer w.Close()
+
+		events, errs := w.Start()
+
+		err = ioutil.WriteFile(filePath, []byte("foo"), os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error writing to %v: %v", filePath, err)
 		}
 
 		select {

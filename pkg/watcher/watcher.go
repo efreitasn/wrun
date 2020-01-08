@@ -16,7 +16,7 @@ import (
 )
 
 const eventsBufferSize = (unix.SizeofInotifyEvent + 1 + unix.NAME_MAX) * 64
-const inotifyMask = unix.IN_CLOSE_WRITE | unix.IN_CREATE | unix.IN_DELETE | unix.IN_MOVED_FROM | unix.IN_MOVED_TO
+const inotifyMask = unix.IN_CREATE | unix.IN_DELETE | unix.IN_CLOSE_WRITE | unix.IN_MOVED_FROM | unix.IN_MOVED_TO
 
 // W is a watcher for the working directory.
 type W struct {
@@ -169,6 +169,11 @@ func (w *W) Start() (events chan Event, errs chan error) {
 					}
 
 					e = DeleteEvent{
+						path:  fileOrDirPath,
+						isDir: isDir,
+					}
+				case inotifyE.Mask&unix.IN_CLOSE_WRITE == unix.IN_CLOSE_WRITE:
+					e = ModifyEvent{
 						path:  fileOrDirPath,
 						isDir: isDir,
 					}
