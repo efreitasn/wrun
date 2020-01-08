@@ -149,7 +149,9 @@ func (w *W) Start() (events chan Event, errs chan error) {
 					}
 				}
 
-				events <- e
+				if e != nil {
+					events <- e
+				}
 
 				i += int(unix.SizeofInotifyEvent + inotifyE.Len)
 			}

@@ -15,13 +15,13 @@ func TestWatcher_createEvent(t *testing.T) {
 	t.Run("create file", func(t *testing.T) {
 		err := os.MkdirAll("a/b/c/d/e", os.ModeDir|os.ModePerm)
 		if err != nil {
-			t.Fatalf("error while creating %v: %v", "a/b/c/d/e", err)
+			t.Fatalf("unexpected error creating %v: %v", "a/b/c/d/e", err)
 		}
 		defer os.RemoveAll("a")
 
 		err = os.MkdirAll("f/g/h/i/j", os.ModeDir|os.ModePerm)
 		if err != nil {
-			t.Fatalf("error while creating %v: %v", "f/g/h/i/j", err)
+			t.Fatalf("unexpected error creating %v: %v", "f/g/h/i/j", err)
 		}
 		defer os.RemoveAll("f")
 
@@ -31,17 +31,18 @@ func TestWatcher_createEvent(t *testing.T) {
 			t.Fatalf("got %v, want %v", err, expectedErr)
 		}
 
+		events, errs := w.Start()
+
 		filePath := path.Join("a/b/c/d/e", "a.txt")
 		_, err = os.Create(filePath)
 		if err != nil {
-			t.Fatalf("error while creating %v: %v", filePath, err)
+			t.Fatalf("unexpected error creating %v: %v", filePath, err)
 		}
 
 		expectedEvent := CreateEvent{
 			isDir: false,
 			path:  filePath,
 		}
-		events, errs := w.Start()
 
 		select {
 		case e := <-events:
@@ -60,13 +61,13 @@ func TestWatcher_createEvent(t *testing.T) {
 	t.Run("create directory", func(t *testing.T) {
 		err := os.MkdirAll("a/b/c/d/e", os.ModeDir|os.ModePerm)
 		if err != nil {
-			t.Fatalf("error while creating %v: %v", "a/b/c/d/e", err)
+			t.Fatalf("unexpected error creating %v: %v", "a/b/c/d/e", err)
 		}
 		defer os.RemoveAll("a")
 
 		err = os.MkdirAll("f/g/h/i/j", os.ModeDir|os.ModePerm)
 		if err != nil {
-			t.Fatalf("error while creating %v: %v", "f/g/h/i/j", err)
+			t.Fatalf("unexpected error creating %v: %v", "f/g/h/i/j", err)
 		}
 		defer os.RemoveAll("f")
 
@@ -76,17 +77,18 @@ func TestWatcher_createEvent(t *testing.T) {
 			t.Fatalf("got %v, want %v", err, expectedErr)
 		}
 
+		events, errs := w.Start()
+
 		dirPath := path.Join("a/b/c/d/e", "z")
 		err = os.Mkdir(dirPath, os.ModeDir|os.ModePerm)
 		if err != nil {
-			t.Fatalf("error while creating %v: %v", dirPath, err)
+			t.Fatalf("unexpected error creating %v: %v", dirPath, err)
 		}
 
 		expectedEvent := CreateEvent{
 			isDir: true,
 			path:  dirPath,
 		}
-		events, errs := w.Start()
 
 		select {
 		case e := <-events:
@@ -104,7 +106,7 @@ func TestWatcher_createEvent(t *testing.T) {
 		filePath := path.Join(dirPath, "a.txt")
 		_, err = os.Create(filePath)
 		if err != nil {
-			t.Fatalf("error while creating %v: %v", filePath, err)
+			t.Fatalf("unexpected error creating %v: %v", filePath, err)
 		}
 
 		expectedEvent = CreateEvent{
@@ -129,13 +131,13 @@ func TestWatcher_createEvent(t *testing.T) {
 	t.Run("create file (regexp)", func(t *testing.T) {
 		err := os.MkdirAll("a/b/c/d/e", os.ModeDir|os.ModePerm)
 		if err != nil {
-			t.Fatalf("error while creating %v: %v", "a/b/c/d/e", err)
+			t.Fatalf("unexpected error creating %v: %v", "a/b/c/d/e", err)
 		}
 		defer os.RemoveAll("a")
 
 		err = os.MkdirAll("f/g/h/i/j", os.ModeDir|os.ModePerm)
 		if err != nil {
-			t.Fatalf("error while creating %v: %v", "f/g/h/i/j", err)
+			t.Fatalf("unexpected error creating %v: %v", "f/g/h/i/j", err)
 		}
 		defer os.RemoveAll("f")
 
@@ -147,13 +149,13 @@ func TestWatcher_createEvent(t *testing.T) {
 			t.Fatalf("got %v, want %v", err, expectedErr)
 		}
 
+		events, errs := w.Start()
+
 		filePath := path.Join("a/b/c/d/e", "a.txt")
 		_, err = os.Create(filePath)
 		if err != nil {
-			t.Fatalf("error while creating %v: %v", filePath, err)
+			t.Fatalf("unexpected error creating %v: %v", filePath, err)
 		}
-
-		events, errs := w.Start()
 
 		select {
 		case e := <-events:
@@ -169,13 +171,13 @@ func TestWatcher_createEvent(t *testing.T) {
 	t.Run("create directory (regexp)", func(t *testing.T) {
 		err := os.MkdirAll("a/b/c/d/e", os.ModeDir|os.ModePerm)
 		if err != nil {
-			t.Fatalf("error while creating %v: %v", "a/b/c/d/e", err)
+			t.Fatalf("unexpected error creating %v: %v", "a/b/c/d/e", err)
 		}
 		defer os.RemoveAll("a")
 
 		err = os.MkdirAll("f/g/h/i/j", os.ModeDir|os.ModePerm)
 		if err != nil {
-			t.Fatalf("error while creating %v: %v", "f/g/h/i/j", err)
+			t.Fatalf("unexpected error creating %v: %v", "f/g/h/i/j", err)
 		}
 		defer os.RemoveAll("f")
 
@@ -187,13 +189,13 @@ func TestWatcher_createEvent(t *testing.T) {
 			t.Fatalf("got %v, want %v", err, expectedErr)
 		}
 
+		events, errs := w.Start()
+
 		dirPath := path.Join("a/b/c/d/e", "z")
 		err = os.Mkdir(dirPath, os.ModeDir|os.ModePerm)
 		if err != nil {
-			t.Fatalf("error while creating %v: %v", dirPath, err)
+			t.Fatalf("unexpected error creating %v: %v", dirPath, err)
 		}
-
-		events, errs := w.Start()
 
 		select {
 		case e := <-events:
@@ -208,7 +210,7 @@ func TestWatcher_createEvent(t *testing.T) {
 		filePath := path.Join(dirPath, "a.txt")
 		_, err = os.Create(filePath)
 		if err != nil {
-			t.Fatalf("error while creating %v: %v", filePath, err)
+			t.Fatalf("unexpected error creating %v: %v", filePath, err)
 		}
 
 		select {
