@@ -98,6 +98,18 @@ func (w *W) Start() (events chan Event, errs chan error) {
 				var name string
 				inotifyE := (*unix.InotifyEvent)(unsafe.Pointer(&buff[i]))
 
+				if inotifyE.Mask&unix.IN_IGNORED == unix.IN_IGNORED {
+					wd := int(inotifyE.Wd)
+
+					if w.tree.get(wd) == w.tree.root {
+						w.Close()
+						break buffLoop
+					}
+
+					w.tree.rm(wd)
+					continue buffLoop
+				}
+
 				if inotifyE.Len > 0 {
 					name = string(buff[i+unix.SizeofInotifyEvent : i+int(unix.SizeofInotifyEvent+inotifyE.Len)])
 					name = strings.TrimRight(name, "\x00")
@@ -127,10 +139,8 @@ func (w *W) Start() (events chan Event, errs chan error) {
 								return
 							}
 						}
-					} else {
-						if w.matchPath(fileOrDirPath) {
-							continue buffLoop
-						}
+					} else if w.matchPath(fileOrDirPath) {
+						continue buffLoop
 					}
 
 					e = CreateEvent{
