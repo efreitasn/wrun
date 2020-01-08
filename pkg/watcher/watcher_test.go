@@ -243,6 +243,12 @@ func TestWatcher_deleteEvent(t *testing.T) {
 		}
 		defer os.RemoveAll("f")
 
+		filePath := path.Join("a/b/c/d/e", "a.txt")
+		_, err = os.Create(filePath)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", filePath, err)
+		}
+
 		w, err := New([]*regexp.Regexp{})
 		expectedErr := error(nil)
 		if err != expectedErr {
@@ -250,20 +256,7 @@ func TestWatcher_deleteEvent(t *testing.T) {
 		}
 		defer w.Close()
 
-		filePath := path.Join("a/b/c/d/e", "a.txt")
-		_, err = os.Create(filePath)
-		if err != nil {
-			t.Fatalf("unexpected error creating %v: %v", filePath, err)
-		}
-
 		events, errs := w.Start()
-
-		// ignore create event
-		select {
-		case <-events:
-		case <-time.After(eventTimeout):
-			t.Fatal("timeout reached waiting for event")
-		}
 
 		err = os.Remove(filePath)
 		if err != nil {
@@ -302,6 +295,12 @@ func TestWatcher_deleteEvent(t *testing.T) {
 		}
 		defer os.RemoveAll("f")
 
+		dirPath := path.Join("a/b/c/d/e", "z")
+		err = os.Mkdir(dirPath, os.ModeDir|os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", dirPath, err)
+		}
+
 		w, err := New([]*regexp.Regexp{})
 		expectedErr := error(nil)
 		if err != expectedErr {
@@ -310,19 +309,6 @@ func TestWatcher_deleteEvent(t *testing.T) {
 		defer w.Close()
 
 		events, errs := w.Start()
-
-		dirPath := path.Join("a/b/c/d/e", "z")
-		err = os.Mkdir(dirPath, os.ModeDir|os.ModePerm)
-		if err != nil {
-			t.Fatalf("unexpected error creating %v: %v", dirPath, err)
-		}
-
-		// ignore create event
-		select {
-		case <-events:
-		case <-time.After(eventTimeout):
-			t.Fatal("timeout reached waiting for event")
-		}
 
 		err = os.RemoveAll(dirPath)
 		if err != nil {
