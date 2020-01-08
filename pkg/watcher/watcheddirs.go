@@ -1,0 +1,245 @@
+package watcher
+
+import (
+	"path"
+	"path/filepath"
+	"strings"
+)
+
+// watchedDir represents a directory being watched.
+// If it's the root, both path and parent are equal to their
+// respective zero values.
+type watchedDir struct {
+	wd     int
+	name   string
+	parent *watchedDir
+	// children maps name to watchedDir.
+	children map[string]*watchedDir
+}
+
+type watchedDirsTreeCache struct {
+	pathByWd map[int]string
+	wdByPath map[string]int
+}
+
+func newWatchedDirsTreeCache() *watchedDirsTreeCache {
+	return &watchedDirsTreeCache{
+		pathByWd: map[int]string{},
+		wdByPath: map[string]int{},
+	}
+}
+
+func (wdtc *watchedDirsTreeCache) add(wd int, path string) {
+	wdtc.pathByWd[wd] = path
+	wdtc.wdByPath[path] = wd
+}
+
+func (wdtc *watchedDirsTreeCache) path(wd int) (string, bool) {
+	path, ok := wdtc.pathByWd[wd]
+
+	return path, ok
+}
+
+func (wdtc *watchedDirsTreeCache) wd(path string) (int, bool) {
+	wd, ok := wdtc.wdByPath[path]
+
+	return wd, ok
+}
+
+func (wdtc *watchedDirsTreeCache) rmByPath(path string) {
+	wd, ok := wdtc.wd(path)
+	if !ok {
+		return
+	}
+
+	delete(wdtc.pathByWd, wd)
+	delete(wdtc.wdByPath, path)
+}
+
+func (wdtc *watchedDirsTreeCache) rmByWd(wd int) {
+	path, ok := wdtc.path(wd)
+	if !ok {
+		return
+	}
+
+	delete(wdtc.pathByWd, wd)
+	delete(wdtc.wdByPath, path)
+}
+
+// watchedDirsTree represents a tree of watched directories starting at the working directory.
+// Its methods, if incorrect data is passed to them, panic
+// instead of returning errors. This happens because these
+// methods aren't exposed and incorrect data must not be
+// passed. Thus, returning erros would just add unnecessary
+// handling. So they could either do nothing or panic. By
+// panicking, invalid use of these methods can be caught
+// when testing.
+type watchedDirsTree struct {
+	root  *watchedDir
+	items map[int]*watchedDir
+	cache *watchedDirsTreeCache
+}
+
+func newWatchedDirsTree() *watchedDirsTree {
+	return &watchedDirsTree{
+		items: map[int]*watchedDir{},
+		cache: newWatchedDirsTreeCache(),
+	}
+}
+
+func (wdt *watchedDirsTree) setRoot(wd int) {
+	if wdt.root != nil {
+		panic("there's already a root")
+	}
+
+	d := &watchedDir{
+		wd:       wd,
+		name:     ".",
+		children: map[string]*watchedDir{},
+	}
+
+	wdt.root = d
+	wdt.items[d.wd] = d
+}
+
+func (wdt *watchedDirsTree) add(wd int, name string, parentWd int) {
+	parent := wdt.items[parentWd]
+	if parent == nil {
+		panic("parent not found")
+	}
+
+	d := &watchedDir{
+		wd:       wd,
+		name:     name,
+		parent:   parent,
+		children: map[string]*watchedDir{},
+	}
+
+	wdt.items[d.wd] = d
+	d.parent.children[d.name] = d
+}
+
+func (wdt *watchedDirsTree) has(wd int) bool {
+	_, ok := wdt.items[wd]
+
+	return ok
+}
+
+func (wdt *watchedDirsTree) get(wd int) *watchedDir {
+	return wdt.items[wd]
+}
+
+func (wdt *watchedDirsTree) rm(wd int) {
+	item := wdt.items[wd]
+
+	if item == nil {
+		return
+	}
+
+	if item.parent == nil {
+		panic("cannot remove root")
+	}
+
+	delete(item.parent.children, item.name)
+
+	for _, child := range item.children {
+		wdt.rm(child.wd)
+	}
+
+	wdt.invalidate(wd)
+	delete(wdt.items, item.wd)
+}
+
+func (wdt *watchedDirsTree) mv(wd, to int) {
+	item := wdt.get(wd)
+	if item == nil {
+		panic("item not found")
+	}
+
+	if item.parent == nil {
+		panic("cannot move root")
+	}
+
+	toItem := wdt.get(to)
+	if toItem == nil {
+		panic("to item not found")
+	}
+
+	delete(item.parent.children, item.name)
+	toItem.children[item.name] = item
+	item.parent = toItem
+
+	wdt.invalidate(wd)
+}
+
+func (wdt *watchedDirsTree) path(wd int) string {
+	if _, ok := wdt.cache.path(wd); !ok {
+		item := wdt.get(wd)
+		if item == nil {
+			panic("item not found while generating path")
+		}
+
+		// if this is true, it's the root
+		if item.parent == nil {
+			return item.name
+		}
+
+		wdt.cache.add(wd, path.Join(wdt.path(item.parent.wd), item.name))
+	}
+
+	path, _ := wdt.cache.path(wd)
+
+	return path
+}
+
+// pathValidForIO returns the same value as path(), except if the
+// given wd is the root's wd and the root's name is equal to "".
+func (wdt *watchedDirsTree) pathValidForIO(wd int) string {
+	if wdt.root.wd == wd && wdt.root.name == "" {
+		return "."
+	}
+
+	return wdt.path(wd)
+}
+
+func (wdt *watchedDirsTree) invalidate(wd int) {
+	item := wdt.get(wd)
+	if item == nil {
+		panic("item not found")
+	}
+
+	for _, child := range item.children {
+		wdt.invalidate(child.wd)
+	}
+
+	wdt.cache.rmByWd(wd)
+}
+
+func (wdt *watchedDirsTree) find(path string) *watchedDir {
+	if path == "" {
+		return nil
+	}
+
+	wd, ok := wdt.cache.wd(path)
+	if !ok {
+		pathSegments := strings.Split(path, string(filepath.Separator))
+
+		if wdt.root.name == path {
+			return wdt.root
+		}
+
+		parent := wdt.root
+		for _, pathSegment := range pathSegments {
+			d := parent.children[pathSegment]
+			if d == nil {
+				return nil
+			}
+
+			parent = d
+		}
+
+		return parent
+	}
+
+	return wdt.get(wd)
+}
