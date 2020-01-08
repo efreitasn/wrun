@@ -16,11 +16,12 @@ import (
 )
 
 const eventsBufferSize = (unix.SizeofInotifyEvent + 1 + unix.NAME_MAX) * 64
-const inotifyMask = unix.IN_CLOSE_WRITE | unix.IN_CREATE | unix.IN_MOVED_FROM | unix.IN_MOVED_TO
+const inotifyMask = unix.IN_CLOSE_WRITE | unix.IN_CREATE | unix.IN_DELETE | unix.IN_MOVED_FROM | unix.IN_MOVED_TO
 
 // W is a watcher for the working directory.
 type W struct {
 	fd            int
+	closed        bool
 	tree          *watchedDirsTree
 	ignoreRegExps []*regexp.Regexp
 	done          chan struct{}
@@ -63,6 +64,8 @@ func (w *W) Start() (events chan Event, errs chan error) {
 	errs = make(chan error)
 
 	go func() {
+		defer w.Close()
+
 		buff := [eventsBufferSize]byte{}
 
 		for {
@@ -86,45 +89,52 @@ func (w *W) Start() (events chan Event, errs chan error) {
 			case res := <-readRes:
 				if res.err != nil {
 					errs <- res.err
-					w.Close()
 					return
 				}
 
 				n = res.n
 			}
 
+			var inotifyE *unix.InotifyEvent
 		buffLoop:
-			for i := 0; i < n; {
-				var name string
-				inotifyE := (*unix.InotifyEvent)(unsafe.Pointer(&buff[i]))
-
-				if inotifyE.Mask&unix.IN_IGNORED == unix.IN_IGNORED {
-					wd := int(inotifyE.Wd)
-
-					if w.tree.get(wd) == w.tree.root {
-						w.Close()
-						break buffLoop
-					}
-
-					w.tree.rm(wd)
-					continue buffLoop
+			for i := 0; i < n; i += int(unix.SizeofInotifyEvent + inotifyE.Len) {
+				select {
+				case <-w.done:
+					return
+				default:
 				}
+
+				var name string
+				inotifyE = (*unix.InotifyEvent)(unsafe.Pointer(&buff[i]))
 
 				if inotifyE.Len > 0 {
 					name = string(buff[i+unix.SizeofInotifyEvent : i+int(unix.SizeofInotifyEvent+inotifyE.Len)])
+					// remove trailing null chars
 					name = strings.TrimRight(name, "\x00")
 				}
 
-				dir := w.tree.get(int(inotifyE.Wd))
+				parentDir := w.tree.get(int(inotifyE.Wd))
 				var e Event
 
-				fileOrDirPath := path.Join(w.tree.path(dir.wd), name)
+				fileOrDirPath := path.Join(w.tree.path(parentDir.wd), name)
+				// if it matches, it means it should be ignored
+				if w.matchPath(fileOrDirPath) {
+					continue buffLoop
+				}
+
 				isDir := inotifyE.Mask&unix.IN_ISDIR == unix.IN_ISDIR
 
 				switch {
+				// this event is only handled if it is from the root,
+				// since, if it is from any other directory, it means
+				// that this directory's parent has already received
+				// an IN_DELETE event and the directory's been already
+				// removed from the inotify instance and the tree.
+				case inotifyE.Mask&unix.IN_IGNORED == unix.IN_IGNORED && w.tree.get(int(inotifyE.Wd)) == w.tree.root:
+					return
 				case inotifyE.Mask&unix.IN_CREATE == unix.IN_CREATE:
 					if isDir {
-						_, match, err := w.addDir(name, dir.wd)
+						_, match, err := w.addDir(name, parentDir.wd)
 						if !match {
 							if err != nil {
 								errs <- err
@@ -139,11 +149,26 @@ func (w *W) Start() (events chan Event, errs chan error) {
 								return
 							}
 						}
-					} else if w.matchPath(fileOrDirPath) {
-						continue buffLoop
 					}
 
 					e = CreateEvent{
+						path:  fileOrDirPath,
+						isDir: isDir,
+					}
+				case inotifyE.Mask&unix.IN_DELETE == unix.IN_DELETE:
+					if isDir {
+						dir := w.tree.find(fileOrDirPath)
+						// this should never happen
+						if dir == nil {
+							continue buffLoop
+						}
+
+						// the directory isn't removed from the inotify instance
+						// because it was removed automatically when it was removed
+						w.tree.rm(dir.wd)
+					}
+
+					e = DeleteEvent{
 						path:  fileOrDirPath,
 						isDir: isDir,
 					}
@@ -152,8 +177,6 @@ func (w *W) Start() (events chan Event, errs chan error) {
 				if e != nil {
 					events <- e
 				}
-
-				i += int(unix.SizeofInotifyEvent + inotifyE.Len)
 			}
 		}
 	}()
@@ -162,7 +185,13 @@ func (w *W) Start() (events chan Event, errs chan error) {
 }
 
 // Close closes the watcher.
+// If the watcher is already closed, it's a no-op.
 func (w *W) Close() error {
+	if w.closed {
+		return nil
+	}
+
+	w.closed = true
 	err := unix.Close(w.fd)
 	close(w.done)
 
@@ -204,8 +233,8 @@ func (w *W) addDirsStartingAt(rootPath string) error {
 	return nil
 }
 
-// addDir checks if a directory isn't a match for any of w.ignoreRegExps and, if it isn't, adds it
-// to the tree and to the inotify instance and returns the added directory's wd.
+// addDir checks if a directory isn't a match for any of w.ignoreRegExps and, if it isn't,
+// adds it to the tree and to the inotify instance and returns the added directory's wd.
 func (w *W) addDir(name string, parentWd int) (wd int, match bool, err error) {
 	dirPath := path.Join(w.tree.path(parentWd), name)
 
@@ -225,6 +254,8 @@ func (w *W) addDir(name string, parentWd int) (wd int, match bool, err error) {
 
 // addToInotify adds the given path to the inotify instance and returns the added
 // directory's wd.
+// Note that it doesn't check whether the given path is match for any of
+// w.ignoreRegExps.
 func (w *W) addToInotify(path string) (int, error) {
 	wd, err := unix.InotifyAddWatch(w.fd, path, inotifyMask)
 	if err != nil {
@@ -232,6 +263,17 @@ func (w *W) addToInotify(path string) (int, error) {
 	}
 
 	return wd, nil
+}
+
+// removeFromInotify removes the given path from the inotify instance.
+func (w *W) removeFromInotify(wd int) error {
+	fmt.Println(wd, w.tree.get(wd))
+	wd, err := unix.InotifyRmWatch(w.fd, uint32(wd))
+	if err != nil {
+		return fmt.Errorf("removing directory from inotify instance: %v", err)
+	}
+
+	return nil
 }
 
 // matchPath returns whether the given path matchs any of w.ignoreRegExps.

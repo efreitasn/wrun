@@ -36,3 +36,28 @@ func (ce CreateEvent) WatcherEvent() string {
 func (ce CreateEvent) String() string {
 	return ce.WatcherEvent()
 }
+
+// DeleteEvent represents the removal of a file or directory.
+type DeleteEvent struct {
+	path  string
+	isDir bool
+}
+
+// IsDir returns whether the event item is a directory.
+func (de DeleteEvent) IsDir() bool {
+	return de.isDir
+}
+
+// Path returns the event item's path.
+func (de DeleteEvent) Path() string {
+	return de.path
+}
+
+// WatcherEvent returns a string representation of the event.
+func (de DeleteEvent) WatcherEvent() string {
+	return "remove"
+}
+
+func (de DeleteEvent) String() string {
+	return de.WatcherEvent()
+}
