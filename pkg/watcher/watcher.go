@@ -62,6 +62,7 @@ func New(ignoreRegExps []*regexp.Regexp) (*W, error) {
 func (w *W) Start() (events chan Event, errs chan error) {
 	events = make(chan Event)
 	errs = make(chan error)
+	mvEvents := newMvEvents()
 
 	go func() {
 		defer w.Close()
@@ -75,6 +76,13 @@ func (w *W) Start() (events chan Event, errs chan error) {
 			})
 			go func() {
 				n, err := unix.Read(w.fd, buff[:])
+
+				select {
+				case <-w.done:
+					return
+				default:
+				}
+
 				readRes <- struct {
 					n   int
 					err error
@@ -83,9 +91,74 @@ func (w *W) Start() (events chan Event, errs chan error) {
 
 			var n int
 
+		todo:
 			select {
 			case <-w.done:
 				return
+			case mvEvent := <-mvEvents.queue:
+				var oldPath, newPath string
+
+				hasMvFrom := mvEvent.oldName != ""
+				hasMvTo := mvEvent.newName != ""
+
+				switch {
+				case hasMvFrom && hasMvTo:
+					oldPath = path.Join(
+						w.tree.path(mvEvent.oldParentWd),
+						mvEvent.oldName,
+					)
+					newPath = path.Join(
+						w.tree.path(mvEvent.newParentWd),
+						mvEvent.newName,
+					)
+
+					if mvEvent.isDir {
+						w.tree.mv(w.tree.find(oldPath).wd, mvEvent.newParentWd, mvEvent.newName)
+					}
+				case hasMvFrom:
+					oldPath = path.Join(
+						w.tree.path(mvEvent.oldParentWd),
+						mvEvent.oldName,
+					)
+
+					if mvEvent.isDir {
+						w.tree.rm(w.tree.find(oldPath).wd)
+					}
+				case hasMvTo:
+					newPath = path.Join(
+						w.tree.path(mvEvent.newParentWd),
+						mvEvent.newName,
+					)
+
+					if mvEvent.isDir {
+						_, match, err := w.addDir(mvEvent.newName, mvEvent.newParentWd)
+						if !match {
+							if err != nil {
+								errs <- err
+
+								return
+							}
+
+							err = w.addDirsStartingAt(newPath)
+							if err != nil {
+								errs <- err
+
+								return
+							}
+						}
+					}
+				}
+
+				select {
+				case <-w.done:
+				default:
+					events <- RenameEvent{
+						isDir:   mvEvent.isDir,
+						OldPath: oldPath,
+						path:    newPath,
+					}
+				}
+				goto todo
 			case res := <-readRes:
 				if res.err != nil {
 					errs <- res.err
@@ -177,10 +250,18 @@ func (w *W) Start() (events chan Event, errs chan error) {
 						path:  fileOrDirPath,
 						isDir: isDir,
 					}
+				case inotifyE.Mask&unix.IN_MOVED_FROM == unix.IN_MOVED_FROM:
+					mvEvents.addMvFrom(int(inotifyE.Cookie), name, int(inotifyE.Wd), isDir)
+				case inotifyE.Mask&unix.IN_MOVED_TO == unix.IN_MOVED_TO:
+					mvEvents.addMvTo(int(inotifyE.Cookie), name, int(inotifyE.Wd), isDir)
 				}
 
 				if e != nil {
-					events <- e
+					select {
+					case <-w.done:
+					default:
+						events <- e
+					}
 				}
 			}
 		}
@@ -272,7 +353,6 @@ func (w *W) addToInotify(path string) (int, error) {
 
 // removeFromInotify removes the given path from the inotify instance.
 func (w *W) removeFromInotify(wd int) error {
-	fmt.Println(wd, w.tree.get(wd))
 	wd, err := unix.InotifyRmWatch(w.fd, uint32(wd))
 	if err != nil {
 		return fmt.Errorf("removing directory from inotify instance: %v", err)

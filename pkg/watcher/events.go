@@ -86,3 +86,31 @@ func (me ModifyEvent) WatcherEvent() string {
 func (me ModifyEvent) String() string {
 	return me.WatcherEvent()
 }
+
+// RenameEvent represents the moving of a file or directory.
+type RenameEvent struct {
+	// OldPath can be equal to "" if the old path is from an unwatched directory.
+	OldPath string
+	path    string
+	isDir   bool
+}
+
+// IsDir returns whether the event item is a directory.
+func (re RenameEvent) IsDir() bool {
+	return re.isDir
+}
+
+// Path returns the event item's path.
+// Path can be equal to "" if the new path is from an unwatched directory.
+func (re RenameEvent) Path() string {
+	return re.path
+}
+
+// WatcherEvent returns a string representation of the event.
+func (re RenameEvent) WatcherEvent() string {
+	return "modify"
+}
+
+func (re RenameEvent) String() string {
+	return re.WatcherEvent()
+}

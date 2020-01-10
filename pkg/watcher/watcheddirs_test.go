@@ -99,58 +99,170 @@ func TestWatchedDirsTreeRmHasGet_child(t *testing.T) {
 }
 
 func TestWatchedDirsTreeMvInvalidate(t *testing.T) {
-	wdt := newWatchedDirsTree()
-	wdt.setRoot(0)
+	t.Run("only parent", func(t *testing.T) {
+		wdt := newWatchedDirsTree()
+		wdt.setRoot(0)
 
-	dir1Wd := 1
-	dir1Name := "some"
-	dir1ParentWd := wdt.root.wd
-	dir2Wd := 2
-	dir2Name := "foo"
-	dir2ParentWd := dir1Wd
-	dir3Wd := 3
-	dir3Name := "bar"
-	dir3ParentWd := dir1Wd
-	dir4Wd := 4
-	dir4Name := "fourth"
-	dir4ParentWd := dir3Wd
+		dir1Wd := 1
+		dir1Name := "some"
+		dir1ParentWd := wdt.root.wd
+		dir2Wd := 2
+		dir2Name := "foo"
+		dir2ParentWd := dir1Wd
+		dir3Wd := 3
+		dir3Name := "bar"
+		dir3ParentWd := dir1Wd
+		dir4Wd := 4
+		dir4Name := "fourth"
+		dir4ParentWd := dir3Wd
 
-	wdt.add(dir1Wd, dir1Name, dir1ParentWd)
-	wdt.add(dir2Wd, dir2Name, dir2ParentWd)
-	wdt.add(dir3Wd, dir3Name, dir3ParentWd)
-	wdt.add(dir4Wd, dir4Name, dir4ParentWd)
+		wdt.add(dir1Wd, dir1Name, dir1ParentWd)
+		wdt.add(dir2Wd, dir2Name, dir2ParentWd)
+		wdt.add(dir3Wd, dir3Name, dir3ParentWd)
+		wdt.add(dir4Wd, dir4Name, dir4ParentWd)
 
-	// add entry to cache
-	wdt.path(dir4Wd)
+		// add entry to cache
+		wdt.path(dir4Wd)
 
-	wdt.mv(dir4Wd, dir2Wd)
+		wdt.mv(dir4Wd, dir2Wd, "")
 
-	/*
-		before moving:
-		- root
-			- dir1
-				- dir2
-				- dir3
-					- dir4
+		/*
+			before moving:
+			- root
+				- dir1
+					- dir2
+					- dir3
+						- dir4
 
-		after moving:
-		- root
-			- dir1
-				- dir2
-					- dir4
-				- dir3
-	*/
+			after moving:
+			- root
+				- dir1
+					- dir2
+						- dir4
+					- dir3
+		*/
 
-	expectedDir4Path := path.Join(
-		dir1Name,
-		dir2Name,
-		dir4Name,
-	)
-	dir4Path := wdt.path(dir4Wd)
+		expectedDir4Path := path.Join(
+			dir1Name,
+			dir2Name,
+			dir4Name,
+		)
+		dir4Path := wdt.path(dir4Wd)
 
-	if dir4Path != expectedDir4Path {
-		t.Errorf("got %v, want %v", dir4Path, expectedDir4Path)
-	}
+		_, isChildOfDir3 := wdt.get(dir3Wd).children[dir3Name]
+		expectedIsChildOfDir3 := false
+
+		if dir4Path != expectedDir4Path {
+			t.Errorf("got %v, want %v", dir4Path, expectedDir4Path)
+		}
+
+		if isChildOfDir3 != expectedIsChildOfDir3 {
+			t.Errorf("got %v, want %v", isChildOfDir3, expectedIsChildOfDir3)
+		}
+	})
+
+	t.Run("only name", func(t *testing.T) {
+		wdt := newWatchedDirsTree()
+		wdt.setRoot(0)
+
+		dir1Wd := 1
+		dir1Name := "some"
+		dir1ParentWd := wdt.root.wd
+		dir2Wd := 2
+		dir2Name := "foo"
+		dir2ParentWd := dir1Wd
+		dir3Wd := 3
+		dir3Name := "bar"
+		dir3ParentWd := dir1Wd
+		dir4Wd := 4
+		dir4Name := "fourth"
+		dir4NewName := "the_fourth"
+		dir4ParentWd := dir3Wd
+
+		wdt.add(dir1Wd, dir1Name, dir1ParentWd)
+		wdt.add(dir2Wd, dir2Name, dir2ParentWd)
+		wdt.add(dir3Wd, dir3Name, dir3ParentWd)
+		wdt.add(dir4Wd, dir4Name, dir4ParentWd)
+
+		// add entry to cache
+		wdt.path(dir4Wd)
+
+		wdt.mv(dir4Wd, -1, dir4NewName)
+
+		expectedDir4Path := path.Join(
+			dir1Name,
+			dir3Name,
+			dir4NewName,
+		)
+		dir4Path := wdt.path(dir4Wd)
+
+		if dir4Path != expectedDir4Path {
+			t.Errorf("got %v, want %v", dir4Path, expectedDir4Path)
+		}
+	})
+
+	t.Run("name and parent", func(t *testing.T) {
+		wdt := newWatchedDirsTree()
+		wdt.setRoot(0)
+
+		dir1Wd := 1
+		dir1Name := "some"
+		dir1ParentWd := wdt.root.wd
+		dir2Wd := 2
+		dir2Name := "foo"
+		dir2ParentWd := dir1Wd
+		dir3Wd := 3
+		dir3Name := "bar"
+		dir3ParentWd := dir1Wd
+		dir4Wd := 4
+		dir4Name := "fourth"
+		dir4NewName := "the_fourth"
+		dir4ParentWd := dir3Wd
+
+		wdt.add(dir1Wd, dir1Name, dir1ParentWd)
+		wdt.add(dir2Wd, dir2Name, dir2ParentWd)
+		wdt.add(dir3Wd, dir3Name, dir3ParentWd)
+		wdt.add(dir4Wd, dir4Name, dir4ParentWd)
+
+		// add entry to cache
+		wdt.path(dir4Wd)
+
+		wdt.mv(dir4Wd, dir2Wd, dir4NewName)
+
+		/*
+			before moving:
+			- root
+				- dir1
+					- dir2
+					- dir3
+						- dir4
+
+			after moving:
+			- root
+				- dir1
+					- dir2
+						- dir4
+					- dir3
+		*/
+
+		expectedDir4Path := path.Join(
+			dir1Name,
+			dir2Name,
+			dir4NewName,
+		)
+		dir4Path := wdt.path(dir4Wd)
+
+		_, isChildOfDir3 := wdt.get(dir3Wd).children[dir3Name]
+		expectedIsChildOfDir3 := false
+
+		if dir4Path != expectedDir4Path {
+			t.Errorf("got %v, want %v", dir4Path, expectedDir4Path)
+		}
+
+		if isChildOfDir3 != expectedIsChildOfDir3 {
+			t.Errorf("got %v, want %v", isChildOfDir3, expectedIsChildOfDir3)
+		}
+	})
 }
 
 func TestWatchedDirsTreePath(t *testing.T) {

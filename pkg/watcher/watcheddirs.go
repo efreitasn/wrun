@@ -150,7 +150,9 @@ func (wdt *watchedDirsTree) rm(wd int) {
 	delete(wdt.items, item.wd)
 }
 
-func (wdt *watchedDirsTree) mv(wd, to int) {
+// if newParentWd < 0, the dir's parent isn't updated.
+// if name == "", the dir's name isn't updated.
+func (wdt *watchedDirsTree) mv(wd, newParentWd int, name string) {
 	item := wdt.get(wd)
 	if item == nil {
 		panic("item not found")
@@ -160,14 +162,27 @@ func (wdt *watchedDirsTree) mv(wd, to int) {
 		panic("cannot move root")
 	}
 
-	toItem := wdt.get(to)
-	if toItem == nil {
-		panic("to item not found")
+	if newParentWd == -1 {
+		newParentWd = item.parent.wd
 	}
 
-	delete(item.parent.children, item.name)
-	toItem.children[item.name] = item
-	item.parent = toItem
+	newParent := wdt.get(newParentWd)
+	if newParent == nil {
+		panic("newParent not found")
+	}
+
+	if name != "" && name != item.name {
+		delete(item.parent.children, item.name)
+		item.name = name
+
+		item.parent.children[name] = item
+	}
+
+	if newParentWd != item.parent.wd {
+		delete(item.parent.children, item.name)
+		newParent.children[item.name] = item
+		item.parent = newParent
+	}
 
 	wdt.invalidate(wd)
 }

@@ -527,3 +527,219 @@ func TestWatcher_modifyEvent(t *testing.T) {
 		}
 	})
 }
+
+func TestWatcher_renameEvent(t *testing.T) {
+	t.Run("rename file from a watched directory to a watched directory", func(t *testing.T) {
+		err := os.MkdirAll("a/b/c/d/e", os.ModeDir|os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", "a/b/c/d/e", err)
+		}
+		defer os.RemoveAll("a")
+
+		err = os.MkdirAll("f/g/h/i/j", os.ModeDir|os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", "f/g/h/i/j", err)
+		}
+		defer os.RemoveAll("f")
+
+		oldFilePath := path.Join("a/b/c/d/e", "a.txt")
+		newFilePath := path.Join("f/g/h/i/j", "b.txt")
+		_, err = os.Create(oldFilePath)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", oldFilePath, err)
+		}
+
+		w, err := New([]*regexp.Regexp{})
+		expectedErr := error(nil)
+		if err != expectedErr {
+			t.Fatalf("got %v, want %v", err, expectedErr)
+		}
+		defer w.Close()
+
+		events, errs := w.Start()
+
+		err = os.Rename(oldFilePath, newFilePath)
+		if err != nil {
+			t.Fatalf("unexpected error renaming %v to %v: %v", oldFilePath, newFilePath, err)
+		}
+
+		expectedEvent := RenameEvent{
+			isDir:   false,
+			path:    newFilePath,
+			OldPath: oldFilePath,
+		}
+
+		select {
+		case e := <-events:
+			if e != expectedEvent {
+				t.Fatalf("got %v, want %v", e, expectedEvent)
+			}
+		case err := <-errs:
+			t.Fatalf("unexpected err: %v", err)
+		case <-w.Done:
+			t.Fatal("channel closed")
+		case <-time.After(eventTimeout):
+			t.Fatal("timeout reached waiting for event")
+		}
+	})
+
+	t.Run("rename file from a watched directory to an unwatched directory", func(t *testing.T) {
+		err := os.MkdirAll("a/b/c/d/e", os.ModeDir|os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", "a/b/c/d/e", err)
+		}
+		defer os.RemoveAll("a")
+
+		err = os.MkdirAll("f/g/h/i/j", os.ModeDir|os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", "f/g/h/i/j", err)
+		}
+		defer os.RemoveAll("f")
+
+		oldFilePath := path.Join("a/b/c/d/e", "a.txt")
+		newFilePath := path.Join("f/g/h/i/j", "b.txt")
+		_, err = os.Create(oldFilePath)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", oldFilePath, err)
+		}
+
+		w, err := New([]*regexp.Regexp{
+			regexp.MustCompile("^f.*"),
+		})
+		expectedErr := error(nil)
+		if err != expectedErr {
+			t.Fatalf("got %v, want %v", err, expectedErr)
+		}
+		defer w.Close()
+
+		events, errs := w.Start()
+
+		err = os.Rename(oldFilePath, newFilePath)
+		if err != nil {
+			t.Fatalf("unexpected error renaming %v to %v: %v", oldFilePath, newFilePath, err)
+		}
+
+		expectedEvent := RenameEvent{
+			isDir:   false,
+			path:    "",
+			OldPath: oldFilePath,
+		}
+
+		select {
+		case e := <-events:
+			if e != expectedEvent {
+				t.Fatalf("got %v, want %v", e, expectedEvent)
+			}
+		case err := <-errs:
+			t.Fatalf("unexpected err: %v", err)
+		case <-w.Done:
+			t.Fatal("channel closed")
+		case <-time.After(eventTimeout):
+			t.Fatal("timeout reached waiting for event")
+		}
+	})
+
+	t.Run("rename file from an unwatched directory to a watched directory", func(t *testing.T) {
+		err := os.MkdirAll("a/b/c/d/e", os.ModeDir|os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", "a/b/c/d/e", err)
+		}
+		defer os.RemoveAll("a")
+
+		err = os.MkdirAll("f/g/h/i/j", os.ModeDir|os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", "f/g/h/i/j", err)
+		}
+		defer os.RemoveAll("f")
+
+		oldFilePath := path.Join("f/g/h/i/j", "b.txt")
+		newFilePath := path.Join("a/b/c/d/e", "a.txt")
+		_, err = os.Create(oldFilePath)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", oldFilePath, err)
+		}
+
+		w, err := New([]*regexp.Regexp{
+			regexp.MustCompile("^f.*"),
+		})
+		expectedErr := error(nil)
+		if err != expectedErr {
+			t.Fatalf("got %v, want %v", err, expectedErr)
+		}
+		defer w.Close()
+
+		events, errs := w.Start()
+
+		err = os.Rename(oldFilePath, newFilePath)
+		if err != nil {
+			t.Fatalf("unexpected error renaming %v to %v: %v", oldFilePath, newFilePath, err)
+		}
+
+		expectedEvent := RenameEvent{
+			isDir:   false,
+			path:    newFilePath,
+			OldPath: "",
+		}
+
+		select {
+		case e := <-events:
+			if e != expectedEvent {
+				t.Fatalf("got %v, want %v", e, expectedEvent)
+			}
+		case err := <-errs:
+			t.Fatalf("unexpected err: %v", err)
+		case <-w.Done:
+			t.Fatal("channel closed")
+		case <-time.After(eventTimeout):
+			t.Fatal("timeout reached waiting for event")
+		}
+	})
+
+	t.Run("rename file from an unwatched directory to an unwatched directory", func(t *testing.T) {
+		err := os.MkdirAll("a/b/c/d/e", os.ModeDir|os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", "a/b/c/d/e", err)
+		}
+		defer os.RemoveAll("a")
+
+		err = os.MkdirAll("f/g/h/i/j", os.ModeDir|os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", "f/g/h/i/j", err)
+		}
+		defer os.RemoveAll("f")
+
+		oldFilePath := path.Join("f/g/h/i/j", "b.txt")
+		newFilePath := path.Join("a/b/c/d/e", "a.txt")
+		_, err = os.Create(oldFilePath)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", oldFilePath, err)
+		}
+
+		w, err := New([]*regexp.Regexp{
+			regexp.MustCompile("^f.*"),
+			regexp.MustCompile("^a.*"),
+		})
+		expectedErr := error(nil)
+		if err != expectedErr {
+			t.Fatalf("got %v, want %v", err, expectedErr)
+		}
+		defer w.Close()
+
+		events, errs := w.Start()
+
+		err = os.Rename(oldFilePath, newFilePath)
+		if err != nil {
+			t.Fatalf("unexpected error renaming %v to %v: %v", oldFilePath, newFilePath, err)
+		}
+
+		select {
+		case e := <-events:
+			t.Fatalf("unexpected event %v", e)
+		case err := <-errs:
+			t.Fatalf("unexpected err: %v", err)
+		case <-w.Done:
+			t.Fatal("channel closed")
+		case <-time.After(eventTimeout):
+		}
+	})
+}
