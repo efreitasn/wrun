@@ -27,18 +27,18 @@ type mvEvent struct {
 	isDir       bool
 }
 
-// mvEvents
 type mvEvents struct {
 	mx     sync.Mutex
 	mvFrom map[int]*mvFromEvent
 	queue  chan *mvEvent
+	done   chan struct{}
 }
 
-// TODO context
 func newMvEvents() *mvEvents {
 	return &mvEvents{
 		queue:  make(chan *mvEvent, 1),
 		mvFrom: map[int]*mvFromEvent{},
+		done:   make(chan struct{}),
 	}
 }
 
@@ -58,7 +58,8 @@ func (me *mvEvents) addMvFrom(cookie int, name string, parentWd int, isDir bool)
 	go func() {
 		select {
 		case <-done:
-		case <-time.After(time.Millisecond * 20):
+		case <-me.done:
+		case <-time.After(time.Millisecond * 100):
 			me.queue <- &mvEvent{
 				oldParentWd: parentWd,
 				oldName:     name,
@@ -79,7 +80,12 @@ func (me *mvEvents) addMvTo(cookie int, name string, parentWd int, isDir bool) {
 	me.mx.Unlock()
 
 	if mvFrom != nil {
+		me.mx.Lock()
+		delete(me.mvFrom, cookie)
+		me.mx.Unlock()
+
 		close(mvFrom.done)
+
 		me.queue <- &mvEvent{
 			oldParentWd: mvFrom.parentWd,
 			oldName:     mvFrom.name,
@@ -102,7 +108,5 @@ func (me *mvEvents) close() {
 	me.mx.Lock()
 	defer me.mx.Unlock()
 
-	for _, mvFrom := range me.mvFrom {
-		close(mvFrom.done)
-	}
+	close(me.done)
 }

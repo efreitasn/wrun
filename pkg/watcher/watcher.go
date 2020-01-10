@@ -25,7 +25,6 @@ type W struct {
 	tree          *watchedDirsTree
 	ignoreRegExps []*regexp.Regexp
 	done          chan struct{}
-	Done          <-chan struct{}
 }
 
 // New creates a watcher for the working directory.
@@ -40,7 +39,6 @@ func New(ignoreRegExps []*regexp.Regexp) (*W, error) {
 		fd:            fd,
 		tree:          newWatchedDirsTree(),
 		done:          done,
-		Done:          done,
 		ignoreRegExps: ignoreRegExps,
 	}
 
@@ -64,37 +62,147 @@ func (w *W) Start() (events chan Event, errs chan error) {
 	errs = make(chan error)
 	mvEvents := newMvEvents()
 
-	go func() {
-		defer w.Close()
+	readingErr := make(chan error)
+	readingRes := make(chan struct {
+		inotifyE unix.InotifyEvent
+		name     string
+	})
 
+	// reading from inotify instance's fd
+	go func() {
 		buff := [eventsBufferSize]byte{}
 
 		for {
-			readRes := make(chan struct {
-				n   int
-				err error
-			})
-			go func() {
-				n, err := unix.Read(w.fd, buff[:])
+			select {
+			case <-w.done:
+				return
+			default:
+			}
 
+			n, err := unix.Read(w.fd, buff[:])
+			if err != nil {
+				readingErr <- err
+				return
+			}
+
+			previousNameLen := 0
+			for i := 0; i < n; i += int(unix.SizeofInotifyEvent + previousNameLen) {
 				select {
 				case <-w.done:
 					return
 				default:
 				}
 
-				readRes <- struct {
-					n   int
-					err error
-				}{n, err}
-			}()
+				var name string
 
-			var n int
+				inotifyE := (*unix.InotifyEvent)(unsafe.Pointer(&buff[i]))
 
-		todo:
+				if inotifyE.Len > 0 {
+					name = string(buff[i+unix.SizeofInotifyEvent : i+int(unix.SizeofInotifyEvent+inotifyE.Len)])
+					// remove trailing null chars
+					name = strings.TrimRight(name, "\x00")
+				}
+
+				readingRes <- struct {
+					inotifyE unix.InotifyEvent
+					name     string
+				}{
+					*inotifyE,
+					name,
+				}
+
+				previousNameLen = int(inotifyE.Len)
+			}
+		}
+	}()
+
+	go func() {
+		defer mvEvents.close()
+		defer w.Close()
+
+		for {
 			select {
 			case <-w.done:
 				return
+			case err := <-readingErr:
+				errs <- fmt.Errorf("reading from inotify instance's fd: %v", err)
+
+				return
+			case res := <-readingRes:
+				var e Event
+
+				parentDir := w.tree.get(int(res.inotifyE.Wd))
+
+				fileOrDirPath := path.Join(w.tree.path(parentDir.wd), res.name)
+				// if it matches, it means it should be ignored
+				if w.matchPath(fileOrDirPath) {
+					continue
+				}
+
+				isDir := res.inotifyE.Mask&unix.IN_ISDIR == unix.IN_ISDIR
+
+				switch {
+				// this event is only handled if it is from the root,
+				// since, if it is from any other directory, it means
+				// that this directory's parent has already received
+				// an IN_DELETE event and the directory's been already
+				// removed from the inotify instance and the tree.
+				case res.inotifyE.Mask&unix.IN_IGNORED == unix.IN_IGNORED && w.tree.get(int(res.inotifyE.Wd)) == w.tree.root:
+					return
+				case res.inotifyE.Mask&unix.IN_CREATE == unix.IN_CREATE:
+					if isDir {
+						_, match, err := w.addDir(res.name, parentDir.wd)
+						if !match {
+							if err != nil {
+								errs <- err
+
+								return
+							}
+
+							err = w.addDirsStartingAt(fileOrDirPath)
+							if err != nil {
+								errs <- err
+
+								return
+							}
+						}
+					}
+
+					e = CreateEvent{
+						path:  fileOrDirPath,
+						isDir: isDir,
+					}
+				case res.inotifyE.Mask&unix.IN_DELETE == unix.IN_DELETE:
+					if isDir {
+						dir := w.tree.find(fileOrDirPath)
+						// this should never happen
+						if dir == nil {
+							continue
+						}
+
+						// the directory isn't removed from the inotify instance
+						// because it was removed automatically when it was removed
+						w.tree.rm(dir.wd)
+					}
+
+					e = DeleteEvent{
+						path:  fileOrDirPath,
+						isDir: isDir,
+					}
+				case res.inotifyE.Mask&unix.IN_CLOSE_WRITE == unix.IN_CLOSE_WRITE:
+					e = ModifyEvent{
+						path:  fileOrDirPath,
+						isDir: isDir,
+					}
+				case res.inotifyE.Mask&unix.IN_MOVED_FROM == unix.IN_MOVED_FROM:
+					mvEvents.addMvFrom(int(res.inotifyE.Cookie), res.name, int(res.inotifyE.Wd), isDir)
+				case res.inotifyE.Mask&unix.IN_MOVED_TO == unix.IN_MOVED_TO:
+					mvEvents.addMvTo(int(res.inotifyE.Cookie), res.name, int(res.inotifyE.Wd), isDir)
+				}
+
+				if e != nil {
+					events <- e
+				}
 			case mvEvent := <-mvEvents.queue:
 				var oldPath, newPath string
 
@@ -149,125 +257,21 @@ func (w *W) Start() (events chan Event, errs chan error) {
 					}
 				}
 
-				select {
-				case <-w.done:
-				default:
-					events <- RenameEvent{
-						isDir:   mvEvent.isDir,
-						OldPath: oldPath,
-						path:    newPath,
-					}
-				}
-				goto todo
-			case res := <-readRes:
-				if res.err != nil {
-					errs <- res.err
-					return
-				}
-
-				n = res.n
-			}
-
-			var inotifyE *unix.InotifyEvent
-		buffLoop:
-			for i := 0; i < n; i += int(unix.SizeofInotifyEvent + inotifyE.Len) {
-				select {
-				case <-w.done:
-					return
-				default:
-				}
-
-				var name string
-				inotifyE = (*unix.InotifyEvent)(unsafe.Pointer(&buff[i]))
-
-				if inotifyE.Len > 0 {
-					name = string(buff[i+unix.SizeofInotifyEvent : i+int(unix.SizeofInotifyEvent+inotifyE.Len)])
-					// remove trailing null chars
-					name = strings.TrimRight(name, "\x00")
-				}
-
-				parentDir := w.tree.get(int(inotifyE.Wd))
-				var e Event
-
-				fileOrDirPath := path.Join(w.tree.path(parentDir.wd), name)
-				// if it matches, it means it should be ignored
-				if w.matchPath(fileOrDirPath) {
-					continue buffLoop
-				}
-
-				isDir := inotifyE.Mask&unix.IN_ISDIR == unix.IN_ISDIR
-
-				switch {
-				// this event is only handled if it is from the root,
-				// since, if it is from any other directory, it means
-				// that this directory's parent has already received
-				// an IN_DELETE event and the directory's been already
-				// removed from the inotify instance and the tree.
-				case inotifyE.Mask&unix.IN_IGNORED == unix.IN_IGNORED && w.tree.get(int(inotifyE.Wd)) == w.tree.root:
-					return
-				case inotifyE.Mask&unix.IN_CREATE == unix.IN_CREATE:
-					if isDir {
-						_, match, err := w.addDir(name, parentDir.wd)
-						if !match {
-							if err != nil {
-								errs <- err
-
-								return
-							}
-
-							err = w.addDirsStartingAt(fileOrDirPath)
-							if err != nil {
-								errs <- err
-
-								return
-							}
-						}
-					}
-
-					e = CreateEvent{
-						path:  fileOrDirPath,
-						isDir: isDir,
-					}
-				case inotifyE.Mask&unix.IN_DELETE == unix.IN_DELETE:
-					if isDir {
-						dir := w.tree.find(fileOrDirPath)
-						// this should never happen
-						if dir == nil {
-							continue buffLoop
-						}
-
-						// the directory isn't removed from the inotify instance
-						// because it was removed automatically when it was removed
-						w.tree.rm(dir.wd)
-					}
-
-					e = DeleteEvent{
-						path:  fileOrDirPath,
-						isDir: isDir,
-					}
-				case inotifyE.Mask&unix.IN_CLOSE_WRITE == unix.IN_CLOSE_WRITE:
-					e = ModifyEvent{
-						path:  fileOrDirPath,
-						isDir: isDir,
-					}
-				case inotifyE.Mask&unix.IN_MOVED_FROM == unix.IN_MOVED_FROM:
-					mvEvents.addMvFrom(int(inotifyE.Cookie), name, int(inotifyE.Wd), isDir)
-				case inotifyE.Mask&unix.IN_MOVED_TO == unix.IN_MOVED_TO:
-					mvEvents.addMvTo(int(inotifyE.Cookie), name, int(inotifyE.Wd), isDir)
-				}
-
-				if e != nil {
-					select {
-					case <-w.done:
-					default:
-						events <- e
-					}
+				events <- RenameEvent{
+					isDir:   mvEvent.isDir,
+					OldPath: oldPath,
+					path:    newPath,
 				}
 			}
 		}
 	}()
 
 	return events, errs
+}
+
+// Wait blocks until the watcher is closed.
+func (w *W) Wait() {
+	<-w.done
 }
 
 // Close closes the watcher.
@@ -280,8 +284,11 @@ func (w *W) Close() error {
 	w.closed = true
 	err := unix.Close(w.fd)
 	close(w.done)
+	if err != nil {
+		return fmt.Errorf("closing fd: %v", err)
+	}
 
-	return fmt.Errorf("closing fd: %v", err)
+	return nil
 }
 
 // addDirsStartingAt adds every directory descendant of rootPath recursively

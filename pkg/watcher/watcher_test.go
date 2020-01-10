@@ -10,7 +10,7 @@ import (
 )
 
 // eventTimeout represents the amount of time to wait for an event.
-var eventTimeout = time.Millisecond * 100
+var eventTimeout = time.Millisecond * 150
 
 func TestWatcher_createEvent(t *testing.T) {
 	t.Run("create file", func(t *testing.T) {
@@ -53,7 +53,7 @@ func TestWatcher_createEvent(t *testing.T) {
 			}
 		case err := <-errs:
 			t.Fatalf("unexpected err: %v", err)
-		case <-w.Done:
+		case <-w.done:
 			t.Fatal("channel closed")
 		case <-time.After(eventTimeout):
 			t.Fatal("timeout reached waiting for event")
@@ -100,7 +100,7 @@ func TestWatcher_createEvent(t *testing.T) {
 			}
 		case err := <-errs:
 			t.Fatalf("unexpected err: %v", err)
-		case <-w.Done:
+		case <-w.done:
 			t.Fatal("channel closed")
 		case <-time.After(eventTimeout):
 			t.Fatal("timeout reached waiting for event")
@@ -124,7 +124,7 @@ func TestWatcher_createEvent(t *testing.T) {
 			}
 		case err := <-errs:
 			t.Fatalf("unexpected err: %v", err)
-		case <-w.Done:
+		case <-w.done:
 			t.Fatal("channel closed")
 		case <-time.After(eventTimeout):
 			t.Fatal("timeout reached waiting for event")
@@ -166,7 +166,7 @@ func TestWatcher_createEvent(t *testing.T) {
 			t.Fatalf("unexpected event %v", e)
 		case err := <-errs:
 			t.Fatalf("unexpected err: %v", err)
-		case <-w.Done:
+		case <-w.done:
 			t.Fatal("channel closed")
 		case <-time.After(eventTimeout):
 		}
@@ -207,7 +207,7 @@ func TestWatcher_createEvent(t *testing.T) {
 			t.Fatalf("unexpected event %v", e)
 		case err := <-errs:
 			t.Fatalf("unexpected err: %v", err)
-		case <-w.Done:
+		case <-w.done:
 			t.Fatal("channel closed")
 		case <-time.After(eventTimeout):
 		}
@@ -223,7 +223,7 @@ func TestWatcher_createEvent(t *testing.T) {
 			t.Fatalf("unexpected event %v", e)
 		case err := <-errs:
 			t.Fatalf("unexpected err: %v", err)
-		case <-w.Done:
+		case <-w.done:
 			t.Fatal("channel closed")
 		case <-time.After(eventTimeout):
 		}
@@ -276,7 +276,7 @@ func TestWatcher_deleteEvent(t *testing.T) {
 			}
 		case err := <-errs:
 			t.Fatalf("unexpected err: %v", err)
-		case <-w.Done:
+		case <-w.done:
 			t.Fatal("channel closed")
 		case <-time.After(eventTimeout):
 			t.Fatal("timeout reached waiting for event")
@@ -328,7 +328,7 @@ func TestWatcher_deleteEvent(t *testing.T) {
 			}
 		case err := <-errs:
 			t.Fatalf("unexpected err: %v", err)
-		case <-w.Done:
+		case <-w.done:
 			t.Fatal("channel closed")
 		case <-time.After(eventTimeout):
 			t.Fatal("timeout reached waiting for event")
@@ -375,7 +375,7 @@ func TestWatcher_deleteEvent(t *testing.T) {
 			t.Fatalf("unexpected event %v", e)
 		case err := <-errs:
 			t.Fatalf("unexpected err: %v", err)
-		case <-w.Done:
+		case <-w.done:
 			t.Fatal("channel closed")
 		case <-time.After(eventTimeout):
 		}
@@ -421,7 +421,7 @@ func TestWatcher_deleteEvent(t *testing.T) {
 			t.Fatalf("unexpected event %v", e)
 		case err := <-errs:
 			t.Fatalf("unexpected err: %v", err)
-		case <-w.Done:
+		case <-w.done:
 			t.Fatal("channel closed")
 		case <-time.After(eventTimeout):
 		}
@@ -474,7 +474,7 @@ func TestWatcher_modifyEvent(t *testing.T) {
 			}
 		case err := <-errs:
 			t.Fatalf("unexpected err: %v", err)
-		case <-w.Done:
+		case <-w.done:
 			t.Fatal("channel closed")
 		case <-time.After(eventTimeout):
 			t.Fatal("timeout reached waiting for event")
@@ -521,7 +521,7 @@ func TestWatcher_modifyEvent(t *testing.T) {
 			t.Fatalf("unexpected event %v", e)
 		case err := <-errs:
 			t.Fatalf("unexpected err: %v", err)
-		case <-w.Done:
+		case <-w.done:
 			t.Fatal("channel closed")
 		case <-time.After(eventTimeout):
 		}
@@ -576,7 +576,7 @@ func TestWatcher_renameEvent(t *testing.T) {
 			}
 		case err := <-errs:
 			t.Fatalf("unexpected err: %v", err)
-		case <-w.Done:
+		case <-w.done:
 			t.Fatal("channel closed")
 		case <-time.After(eventTimeout):
 			t.Fatal("timeout reached waiting for event")
@@ -632,7 +632,7 @@ func TestWatcher_renameEvent(t *testing.T) {
 			}
 		case err := <-errs:
 			t.Fatalf("unexpected err: %v", err)
-		case <-w.Done:
+		case <-w.done:
 			t.Fatal("channel closed")
 		case <-time.After(eventTimeout):
 			t.Fatal("timeout reached waiting for event")
@@ -688,7 +688,7 @@ func TestWatcher_renameEvent(t *testing.T) {
 			}
 		case err := <-errs:
 			t.Fatalf("unexpected err: %v", err)
-		case <-w.Done:
+		case <-w.done:
 			t.Fatal("channel closed")
 		case <-time.After(eventTimeout):
 			t.Fatal("timeout reached waiting for event")
@@ -737,7 +737,7 @@ func TestWatcher_renameEvent(t *testing.T) {
 			t.Fatalf("unexpected event %v", e)
 		case err := <-errs:
 			t.Fatalf("unexpected err: %v", err)
-		case <-w.Done:
+		case <-w.done:
 			t.Fatal("channel closed")
 		case <-time.After(eventTimeout):
 		}
