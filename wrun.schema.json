@@ -45,9 +45,9 @@
       },
       "minItems": 1
     },
-    "ignoreGlobs": {
+    "ignoreRegExps": {
       "type": "array",
-      "description": "List of glob patterns to be ignored when watching.",
+      "description": "List of regular expressions to be ignored when watching.",
       "items": {
         "type": "string"
       }

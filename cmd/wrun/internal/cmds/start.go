@@ -13,7 +13,7 @@ import (
 	"github.com/efreitasn/cfop"
 	"github.com/efreitasn/wrun/internal/config"
 	"github.com/efreitasn/wrun/internal/logs"
-	watcherLib "github.com/radovskyb/watcher"
+	"github.com/efreitasn/wrun/pkg/watcher"
 )
 
 // Start executes the start command.
@@ -31,19 +31,12 @@ func Start(cts *cfop.CmdTermsSet) {
 		return
 	}
 
-	globMatches, err := config.GetGlobMatches(c)
-	if err != nil {
-		logs.Err.Printf("config file: %v\n", err)
-
-		return
-	}
-
 	// Signals
 	deadlySignals := make(chan os.Signal, 1)
 	signal.Notify(deadlySignals, os.Interrupt, syscall.SIGTERM)
 
 	// Watcher
-	watcher, err := createWatcher(globMatches)
+	w, err := watcher.New(c.IgnoreRegExps)
 	if err != nil {
 		logs.Err.Printf("watcher: %v\n", err)
 
@@ -51,7 +44,7 @@ func Start(cts *cfop.CmdTermsSet) {
 	}
 
 	// The returned error is ignored here purposely
-	go watcher.Start(500 * time.Millisecond)
+	wEvents, wErrs := w.Start()
 
 	for {
 		// allCmdsForCurrentEvtCtx is used to indicate that all cmds related to the current event
@@ -100,7 +93,14 @@ func Start(cts *cfop.CmdTermsSet) {
 			}
 
 			return
-		case e := <-watcher.Event:
+		case err := <-wErrs:
+			logs.Err.Printf("watcher: %v\n", err)
+
+			cancelAllCmdsForCurrentEvtCtx()
+			<-allCmdsForCurrentEvtDone
+
+			return
+		case e := <-wEvents:
 			if shouldLogEvents {
 				logs.Evt.Println(e)
 			}
@@ -192,22 +192,4 @@ func logCmdStd(ctx context.Context, l *log.Logger, std io.Reader) {
 			l.Println(string(bs))
 		}
 	}
-}
-
-func createWatcher(ignoreFiles []string) (*watcherLib.Watcher, error) {
-	watcher := watcherLib.New()
-
-	watcher.SetMaxEvents(1)
-
-	watcher.FilterOps(watcherLib.Write)
-	if ignoreFiles != nil {
-		watcher.Ignore(ignoreFiles...)
-	}
-
-	err := watcher.AddRecursive(".")
-	if err != nil {
-		return nil, err
-	}
-
-	return watcher, nil
 }

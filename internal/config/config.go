@@ -5,19 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"runtime"
-	"sync"
+	"regexp"
 )
 
 var defaultDelayToKill = 1000
 var configFileName = "wrun.json"
 var configFileSchemaURL = "https://raw.githubusercontent.com/efreitasn/wrun/master/wrun.schema.json"
 
-// alwaysIgnoreGlobs is a list of glob patterns that are always ignored.
-var alwaysIgnoreGlobs = []string{
-	".git",
-	"wrun.json",
+// alwaysIgnoreRegExps is a list of regexps that are always ignored.
+var alwaysIgnoreRegExps = []*regexp.Regexp{
+	regexp.MustCompile("^.git*"),
+	regexp.MustCompile(".*wrun.json"),
 }
 
 type configFileCmd struct {
@@ -27,11 +25,11 @@ type configFileCmd struct {
 }
 
 type configFile struct {
-	Schema      string          `json:"$schema"`
-	DelayToKill *int            `json:"delayToKill"`
-	FatalIfErr  bool            `json:"fatalIfErr"`
-	Cmds        []configFileCmd `json:"cmds"`
-	IgnoreGlobs []string        `json:"ignoreGlobs"`
+	Schema        string          `json:"$schema"`
+	DelayToKill   *int            `json:"delayToKill"`
+	FatalIfErr    bool            `json:"fatalIfErr"`
+	Cmds          []configFileCmd `json:"cmds"`
+	IgnoreRegExps []string        `json:"ignoreRegExps"`
 }
 
 // Cmd is a command from a config file.
@@ -44,8 +42,8 @@ type Cmd struct {
 
 // Config is the data from a config file.
 type Config struct {
-	Cmds        []Cmd
-	IgnoreGlobs []string
+	Cmds          []Cmd
+	IgnoreRegExps []*regexp.Regexp
 }
 
 // GetConfig returns the data from the config file.
@@ -69,27 +67,12 @@ func GetConfig() (*Config, error) {
 		return nil, err
 	}
 
-	if cf.Cmds == nil {
-		return nil, errors.New("missing cmds field")
+	c, err := parseConfigFile(cf)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(cf.Cmds) == 0 {
-		return nil, errors.New("cmds field is empty")
-	}
-
-	for i, cfCmd := range cf.Cmds {
-		if cfCmd.Terms == nil {
-			return nil, fmt.Errorf("missing terms field in cmds[%v]", i)
-		}
-
-		if len(cfCmd.Terms) == 0 {
-			return nil, fmt.Errorf("terms field in cmds[%v] is empty", i)
-		}
-	}
-
-	c := parseConfigFile(cf)
-
-	return &c, nil
+	return c, nil
 }
 
 // CreateConfigFile creates a config file in the current directory with default data.
@@ -112,8 +95,8 @@ func CreateConfigFile() error {
 			DelayToKill: &defaultDelayToKill,
 			FatalIfErr:  &cmdDefaultFatalIfErr,
 		}},
-		IgnoreGlobs: []string{},
-		Schema:      configFileSchemaURL,
+		IgnoreRegExps: []string{},
+		Schema:        configFileSchemaURL,
 	}
 
 	enc := json.NewEncoder(file)
@@ -128,7 +111,25 @@ func CreateConfigFile() error {
 // parseConfigFile transforms a configFile to a config.
 // Note that this function doesn't perform any kind of validation
 // on the configFile.
-func parseConfigFile(cf configFile) Config {
+func parseConfigFile(cf configFile) (*Config, error) {
+	if cf.Cmds == nil {
+		return nil, errors.New("missing cmds field")
+	}
+
+	if len(cf.Cmds) == 0 {
+		return nil, errors.New("cmds field is empty")
+	}
+
+	for i, cfCmd := range cf.Cmds {
+		if cfCmd.Terms == nil {
+			return nil, fmt.Errorf("missing terms field in cmds[%v]", i)
+		}
+
+		if len(cfCmd.Terms) == 0 {
+			return nil, fmt.Errorf("terms field in cmds[%v] is empty", i)
+		}
+	}
+
 	globalDelayToKill := defaultDelayToKill
 	if cf.DelayToKill != nil {
 		globalDelayToKill = *cf.DelayToKill
@@ -164,67 +165,20 @@ func parseConfigFile(cf configFile) Config {
 		})
 	}
 
-	ignoreGlobs := alwaysIgnoreGlobs
-	if cf.IgnoreGlobs != nil {
-		ignoreGlobs = append(ignoreGlobs, cf.IgnoreGlobs...)
-	}
-
-	return Config{
-		IgnoreGlobs: ignoreGlobs,
-		Cmds:        cmds,
-	}
-}
-
-// GetGlobMatches returns glob matches from a Config.
-func GetGlobMatches(c *Config) ([]string, error) {
-	var wg sync.WaitGroup
-	done := make(chan struct{})
-	matchesCh := make(chan []string)
-	errCh := make(chan error)
-	globPatterns := make(chan string)
-	numWorkers := runtime.GOMAXPROCS(0)
-
-	wg.Add(numWorkers)
-
-	go func() {
-		for _, globPattern := range c.IgnoreGlobs {
-			globPatterns <- globPattern
-		}
-		close(globPatterns)
-	}()
-
-	for i := 0; i < numWorkers; i++ {
-		go func() {
-			for globPattern := range globPatterns {
-				ms, err := filepath.Glob(globPattern)
-				if err != nil {
-					errCh <- err
-
-					return
-				}
-
-				matchesCh <- ms
+	ignoreRegExps := alwaysIgnoreRegExps
+	if cf.IgnoreRegExps != nil {
+		for _, rxStr := range cf.IgnoreRegExps {
+			rx, err := regexp.Compile(rxStr)
+			if err != nil {
+				return nil, fmt.Errorf("%v regexp is invalid", rxStr)
 			}
 
-			wg.Done()
-		}()
-	}
-
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-
-	res := make([]string, 0)
-
-	for {
-		select {
-		case matches := <-matchesCh:
-			res = append(res, matches...)
-		case err := <-errCh:
-			return nil, err
-		case <-done:
-			return res, nil
+			ignoreRegExps = append(ignoreRegExps, rx)
 		}
 	}
+
+	return &Config{
+		IgnoreRegExps: ignoreRegExps,
+		Cmds:          cmds,
+	}, nil
 }

@@ -2,6 +2,7 @@ package config
 
 import (
 	"reflect"
+	"regexp"
 	"strconv"
 	"testing"
 )
@@ -15,12 +16,13 @@ func TestParseConfigFile(t *testing.T) {
 	tests := []struct {
 		cf  configFile
 		res Config
+		err error
 	}{
 		{
 			configFile{
-				DelayToKill: &delay700,
-				FatalIfErr:  true,
-				IgnoreGlobs: []string{"aa*"},
+				DelayToKill:   &delay700,
+				FatalIfErr:    true,
+				IgnoreRegExps: []string{"aa.*"},
 				Cmds: []configFileCmd{
 					configFileCmd{
 						Terms: []string{"foo", "bar"},
@@ -28,7 +30,7 @@ func TestParseConfigFile(t *testing.T) {
 				},
 			},
 			Config{
-				IgnoreGlobs: append(alwaysIgnoreGlobs, "aa*"),
+				IgnoreRegExps: append(alwaysIgnoreRegExps, regexp.MustCompile("aa.*")),
 				Cmds: []Cmd{
 					Cmd{
 						Terms:       []string{"foo", "bar"},
@@ -37,6 +39,7 @@ func TestParseConfigFile(t *testing.T) {
 					},
 				},
 			},
+			nil,
 		},
 		{
 			configFile{
@@ -44,20 +47,21 @@ func TestParseConfigFile(t *testing.T) {
 				FatalIfErr:  true,
 				Cmds: []configFileCmd{
 					configFileCmd{
-						Terms: nil,
+						Terms: []string{"echo", "a"},
 					},
 				},
 			},
 			Config{
-				IgnoreGlobs: alwaysIgnoreGlobs,
+				IgnoreRegExps: alwaysIgnoreRegExps,
 				Cmds: []Cmd{
 					Cmd{
-						Terms:       []string{},
+						Terms:       []string{"echo", "a"},
 						DelayToKill: delay700,
 						FatalIfErr:  true,
 					},
 				},
 			},
+			nil,
 		},
 		{
 			configFile{
@@ -75,7 +79,7 @@ func TestParseConfigFile(t *testing.T) {
 				},
 			},
 			Config{
-				IgnoreGlobs: alwaysIgnoreGlobs,
+				IgnoreRegExps: alwaysIgnoreRegExps,
 				Cmds: []Cmd{
 					Cmd{
 						Terms:       []string{"foo", "bar"},
@@ -89,6 +93,7 @@ func TestParseConfigFile(t *testing.T) {
 					},
 				},
 			},
+			nil,
 		},
 		{
 			configFile{
@@ -107,7 +112,7 @@ func TestParseConfigFile(t *testing.T) {
 				},
 			},
 			Config{
-				IgnoreGlobs: alwaysIgnoreGlobs,
+				IgnoreRegExps: alwaysIgnoreRegExps,
 				Cmds: []Cmd{
 					Cmd{
 						Terms:       []string{"foo", "bar"},
@@ -121,6 +126,7 @@ func TestParseConfigFile(t *testing.T) {
 					},
 				},
 			},
+			nil,
 		},
 		{
 			configFile{
@@ -136,7 +142,7 @@ func TestParseConfigFile(t *testing.T) {
 				},
 			},
 			Config{
-				IgnoreGlobs: alwaysIgnoreGlobs,
+				IgnoreRegExps: alwaysIgnoreRegExps,
 				Cmds: []Cmd{
 					Cmd{
 						Terms:       []string{"foo", "bar"},
@@ -150,15 +156,39 @@ func TestParseConfigFile(t *testing.T) {
 					},
 				},
 			},
+			nil,
 		},
 	}
 
 	for i, test := range tests {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			res := parseConfigFile(test.cf)
+			res, err := parseConfigFile(test.cf)
 
-			if !reflect.DeepEqual(res, test.res) {
-				t.Errorf("got %v, want %v", res, test.res)
+			if err != test.err {
+				t.Fatalf("got %v, want %v", err, test.err)
+			}
+
+			if !reflect.DeepEqual(res.Cmds, test.res.Cmds) {
+				t.Errorf("got %v, want %v", res.Cmds, test.res.Cmds)
+			}
+
+			resRegExpsStr := make([]string, 0)
+			expectedRegExpsStr := make([]string, 0)
+
+			if res.IgnoreRegExps != nil {
+				for _, rx := range res.IgnoreRegExps {
+					resRegExpsStr = append(resRegExpsStr, rx.String())
+				}
+			}
+
+			if test.res.IgnoreRegExps != nil {
+				for _, rx := range test.res.IgnoreRegExps {
+					expectedRegExpsStr = append(expectedRegExpsStr, rx.String())
+				}
+			}
+
+			if !reflect.DeepEqual(resRegExpsStr, expectedRegExpsStr) {
+				t.Errorf("got %v, want %v", resRegExpsStr, expectedRegExpsStr)
 			}
 		})
 	}
