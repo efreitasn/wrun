@@ -2,7 +2,7 @@
 
 set -e
 VERSION=$(git describe --abbrev=0 --tags)
-TARGETS=("linux/amd64" "darwin/amd64")
+TARGETS=("linux/amd64")
 
 if [ ! -d "release" ]; then
   mkdir release
