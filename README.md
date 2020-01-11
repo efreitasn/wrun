@@ -1,5 +1,5 @@
 # wrun
-wrun is a CLI that runs specified commands whenever the contents in the current directory change.
+wrun is an inotify-based CLI that runs specified commands whenever the contents in the current directory change.
 
 ## Installing
 You can install it by building the CLI yourself of download one of the release files available on the [releases page](https://github.com/efreitasn/wrun/releases). Instructions for both are below.
@@ -12,18 +12,19 @@ Once the repository is cloned, run
 
 ```shell
 make
-sudo ./install.sh
 ```
 
 ### From a release file
-
 Extract the contents of the tarball or of the zip file to a directory. In that directory, run:
 
 ```shell
-sudo ./install.sh
+make install
 ```
 
 ## Using
+
+### Watched events
+The following events are watched: `IN_CREATE` | `IN_DELETE` | `IN_CLOSE_WRITE` | `IN_MOVED_FROM` | `IN_MOVED_TO`. To learn more about the inotify API, click [here](http://man7.org/linux/man-pages/man7/inotify.7.html).
 
 ### Config file
 To use wrun, you need to have a config file (`wrun.json`) in the root of the directory to be watched. The easiest way to create it is by running `wrun init`, which will create a config file in the current directory with all of the options set to their respective default values. In order to help editing the JSON properties, the generated config file also has a reference to a JSON schema. Nevertheless, a description for each one of the available fields is provided below.
@@ -36,8 +37,8 @@ The time in milliseconds to wait after sending a SIGINT and before sending a SIG
 #### `fatalIfErr`
 Whether to skip subsequent commands in case the current one returns an error. Defaults to false.
 
-#### `ignoreGlobs`
-List of glob patterns to ignore. The `wrun.json` file and the `.git` directory are always ignored.
+#### `ignoreRegExps`
+List of regular expressions to ignore. The `wrun.json` file and the `.git` directory are always ignored. To learn more about the syntax of the regular expressions, click [here](https://github.com/google/re2/wiki/Syntax).
 
 #### `cmds`
 List of commands to be executed sequentially.
@@ -72,6 +73,3 @@ grep some phrase here file.txt
 ```
 
 In the former, the list of terms is `["grep", "some phrase here", "file.txt"]`), and the `grep` command receives two arguments. In the latter, the list of terms is `["grep", "some", "phrase", "here", "file.txt"]`), and the `grep` command receives four arguments.
-
-## Thanks
-* [watcher](https://github.com/radovskyb/watcher)
