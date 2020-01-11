@@ -29,12 +29,12 @@ for TARGET in "${TARGETS[@]}"; do
 
   echo "creating tarball"
   tar -czf "release/wrun-${VERSION}-${OS}-${ARCH}.tar.gz" --transform="s/release\///" \
-    release/wrun completion.sh install.sh INSTALL
+    release/wrun completion.sh Makefile INSTALL
   echo "tarball created"
 
   echo "creating zip"
   zip -qj "release/wrun-${VERSION}-${OS}-${ARCH}.zip" \
-    release/wrun completion.sh install.sh INSTALL
+    release/wrun completion.sh Makefile INSTALL
   echo "zip created"
 
   rm release/wrun
