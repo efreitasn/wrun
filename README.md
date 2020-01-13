@@ -4,9 +4,7 @@ wrun is an inotify-based CLI that runs specified commands whenever the contents 
 ## Installing
 You can install it by building the CLI yourself of download one of the release files available on the [releases page](https://github.com/efreitasn/wrun/releases). Instructions for both are below.
 
-### Building
-
-> Requires Go v1.13.
+### Building (requires Go v1.13)
 
 Once the repository is cloned, run
 
@@ -21,13 +19,14 @@ Extract the contents of the tarball or of the zip file to a directory. In that d
 make install
 ```
 
-## Using
+## Watched events
+The following events are watched: `IN_CREATE`, `IN_DELETE`, `IN_CLOSE_WRITE`, `IN_MOVED_FROM`, `IN_MOVED_TO`. To learn more about the inotify API, click [here](http://man7.org/linux/man-pages/man7/inotify.7.html).
 
-### Watched events
-The following events are watched: `IN_CREATE` | `IN_DELETE` | `IN_CLOSE_WRITE` | `IN_MOVED_FROM` | `IN_MOVED_TO`. To learn more about the inotify API, click [here](http://man7.org/linux/man-pages/man7/inotify.7.html).
+## Using
+To start watching, run `wrun start` in the directory to be watched. Note that this directory needs to have a config file.
 
 ### Config file
-To use wrun, you need to have a config file (`wrun.json`) in the root of the directory to be watched. The easiest way to create it is by running `wrun init`, which will create a config file in the current directory with all of the options set to their respective default values. In order to help editing the JSON properties, the generated config file also has a reference to a JSON schema. Nevertheless, a description for each one of the available fields is provided below.
+The easiest way to create a config file(`wrun.json`) is by running `wrun init`, which will create a config file in the current directory with all of the options set to their respective default values. In order to help editing the JSON properties, the generated config file also has a reference to a JSON schema. Nevertheless, a description for each one of the available fields is provided below.
 
 > Some properties exist both globally and per command (e.g. `delayToKill` and `fatalIfErr`). The command version, if exists, always takes precedence over the global version.
 
