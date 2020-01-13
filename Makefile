@@ -13,7 +13,7 @@ build:
 install:
 	@sudo cp wrun /usr/local/bin
 	@sudo cp completion.sh /usr/share/bash-completion/completions/wrun
-	@if [ -f ~/.zshrc ]; then\
-  	echo -e "\nautoload bashcompinit\nbashcompinit\nsource /usr/share/bash-completion/completions/wrun" >> ~/.zshrc;\
+	@if [ -f ~/.zshrc ] && ! grep -q "# wrun" ~/.zshrc; then\
+  	echo "\n# wrun\nautoload bashcompinit\nbashcompinit\nsource /usr/share/bash-completion/completions/wrun" >> ~/.zshrc;\
 	fi
 	@echo "Installation is complete"
