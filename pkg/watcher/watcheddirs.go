@@ -7,8 +7,8 @@ import (
 )
 
 // watchedDir represents a directory being watched.
-// If it's the root, both path and parent are equal to their
-// respective zero values.
+// If it's the root, parent is equal to nil and name
+// is equal to ".".
 type watchedDir struct {
 	wd     int
 	name   string
@@ -205,16 +205,6 @@ func (wdt *watchedDirsTree) path(wd int) string {
 	path, _ := wdt.cache.path(wd)
 
 	return path
-}
-
-// pathValidForIO returns the same value as path(), except if the
-// given wd is the root's wd and the root's name is equal to "".
-func (wdt *watchedDirsTree) pathValidForIO(wd int) string {
-	if wdt.root.wd == wd && wdt.root.name == "" {
-		return "."
-	}
-
-	return wdt.path(wd)
 }
 
 func (wdt *watchedDirsTree) invalidate(wd int) {
