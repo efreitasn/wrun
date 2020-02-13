@@ -51,7 +51,7 @@ func (me *mvEvents) addMvFrom(cookie int, name string, parentWd int, isDir bool)
 		parentWd: parentWd,
 		name:     name,
 		isDir:    isDir,
-		done:     make(chan struct{}),
+		done:     done,
 	}
 	me.mx.Unlock()
 
