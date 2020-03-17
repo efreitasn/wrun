@@ -1,35 +1,34 @@
 package config
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"regexp"
+
+	"gopkg.in/yaml.v2"
 )
 
 var defaultDelayToKill = 1000
-var defaultConfigFilePath = "wrun.json"
-var configFileSchemaURL = "https://raw.githubusercontent.com/efreitasn/wrun/master/wrun.schema.json"
+var defaultConfigFilePath = "wrun.yaml"
 
 // alwaysIgnoreRegExps is a list of regexps that are always ignored.
 var alwaysIgnoreRegExps = []*regexp.Regexp{
 	regexp.MustCompile("^.git*"),
-	regexp.MustCompile(".*wrun.json"),
+	regexp.MustCompile("wrun\\.(?:(?:yml)|(?:yaml))$"),
 }
 
 type configFileCmd struct {
-	DelayToKill *int     `json:"delayToKill"`
-	FatalIfErr  *bool    `json:"fatalIfErr"`
-	Terms       []string `json:"terms"`
+	DelayToKill *int     `yaml:"delayToKill"`
+	FatalIfErr  *bool    `yaml:"fatalIfErr"`
+	Terms       []string `yaml:"terms"`
 }
 
 type configFile struct {
-	Schema        string          `json:"$schema"`
-	DelayToKill   *int            `json:"delayToKill"`
-	FatalIfErr    bool            `json:"fatalIfErr"`
-	Cmds          []configFileCmd `json:"cmds"`
-	IgnoreRegExps []string        `json:"ignoreRegExps"`
+	DelayToKill   *int            `yaml:"delayToKill"`
+	FatalIfErr    bool            `yaml:"fatalIfErr"`
+	Cmds          []configFileCmd `yaml:"cmds"`
+	IgnoreRegExps []string        `yaml:"ignoreRegExps"`
 }
 
 // Cmd is a command from a config file.
@@ -64,9 +63,9 @@ func GetConfig(configFilePath string) (*Config, error) {
 
 	var cf configFile
 
-	jsonDec := json.NewDecoder(f)
+	yamlDec := yaml.NewDecoder(f)
 
-	err = jsonDec.Decode(&cf)
+	err = yamlDec.Decode(&cf)
 	if err != nil {
 		return nil, err
 	}
@@ -81,6 +80,10 @@ func GetConfig(configFilePath string) (*Config, error) {
 
 // CreateConfigFile creates a config file in the current directory with default data.
 func CreateConfigFile() error {
+	if hasConfigFile() {
+		return errors.New("there's already a config file")
+	}
+
 	file, err := os.OpenFile(
 		defaultConfigFilePath,
 		os.O_CREATE|os.O_EXCL|os.O_WRONLY,
@@ -100,11 +103,9 @@ func CreateConfigFile() error {
 			FatalIfErr:  &cmdDefaultFatalIfErr,
 		}},
 		IgnoreRegExps: []string{},
-		Schema:        configFileSchemaURL,
 	}
 
-	enc := json.NewEncoder(file)
-	enc.SetIndent("", "  ")
+	enc := yaml.NewEncoder(file)
 	if err = enc.Encode(cf); err != nil {
 		return err
 	}
@@ -185,4 +186,16 @@ func parseConfigFile(cf configFile) (*Config, error) {
 		IgnoreRegExps: ignoreRegExps,
 		Cmds:          cmds,
 	}, nil
+}
+
+func hasConfigFile() bool {
+	if _, err := os.Stat("wrun.yml"); err == nil {
+		return true
+	}
+
+	if _, err := os.Stat("wrun.yaml"); err == nil {
+		return true
+	}
+
+	return false
 }
