@@ -23,7 +23,7 @@ func Start(cts *cfop.CmdTermsSet) {
 	shouldLogEvents := shouldLog && !cts.GetFlag("no-events")
 
 	// Config
-	c, err := config.GetConfig()
+	c, err := config.GetConfig(cts.GetOptString("file"))
 
 	if err != nil {
 		logs.Err.Printf("config file: %v\n", err)

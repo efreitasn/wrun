@@ -9,7 +9,7 @@ import (
 )
 
 var defaultDelayToKill = 1000
-var configFileName = "wrun.json"
+var defaultConfigFilePath = "wrun.json"
 var configFileSchemaURL = "https://raw.githubusercontent.com/efreitasn/wrun/master/wrun.schema.json"
 
 // alwaysIgnoreRegExps is a list of regexps that are always ignored.
@@ -47,8 +47,12 @@ type Config struct {
 }
 
 // GetConfig returns the data from the config file.
-func GetConfig() (*Config, error) {
-	f, err := os.Open(configFileName)
+func GetConfig(configFilePath string) (*Config, error) {
+	if configFilePath == "" {
+		configFilePath = defaultConfigFilePath
+	}
+
+	f, err := os.Open(configFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, errors.New("file doesn't exist")
@@ -78,7 +82,7 @@ func GetConfig() (*Config, error) {
 // CreateConfigFile creates a config file in the current directory with default data.
 func CreateConfigFile() error {
 	file, err := os.OpenFile(
-		configFileName,
+		defaultConfigFilePath,
 		os.O_CREATE|os.O_EXCL|os.O_WRONLY,
 		0666,
 	)
