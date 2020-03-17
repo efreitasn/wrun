@@ -1,5 +1,5 @@
-github.com/efreitasn/cfop v1.0.1 h1:Lk+0C1s6uC6dftr7pdkFiqUln7t79wkF+lHRpyISUwQ=
-github.com/efreitasn/cfop v1.0.1/go.mod h1:FzsuZvDQ8stCFut7A2DUfdl+WXL0kpEA8eDOPoRTpfg=
+github.com/efreitasn/cfop v1.0.2 h1:oYNsYa51yELZEQV09xe/nW/JbFKZfkCpQUgUCmt59fI=
+github.com/efreitasn/cfop v1.0.2/go.mod h1:FzsuZvDQ8stCFut7A2DUfdl+WXL0kpEA8eDOPoRTpfg=
 github.com/efreitasn/customo v1.0.0 h1:/DC+aXVDKpvyQ0EFv17UcXkTgZRfexgEFNuPqNV6z88=
 github.com/efreitasn/customo v1.0.0/go.mod h1:y3KO/ZGOdUfBw6BVliDxpgmL6p5t4/dHskFX8Qc2z2U=
 golang.org/x/sys v0.0.0-20191228213918-04cbcbbfeed8 h1:JA8d3MPx/IToSyXZG/RhwYEtfrKO1Fxrqe8KrkiLXKM=
