@@ -26,7 +26,7 @@ The following events are watched: `IN_CREATE`, `IN_DELETE`, `IN_CLOSE_WRITE`, `I
 To start watching, run `wrun start` in the directory to be watched. Note that this directory needs to have a config file.
 
 ### Config file
-The easiest way to create a config file(`wrun.json`) is by running `wrun init`, which will create a config file in the current directory with all of the options set to their respective default values. In order to help editing the JSON properties, the generated config file also has a reference to a JSON schema. Nevertheless, a description for each one of the available fields is provided below.
+The easiest way to create a config file(`wrun.yaml`) is by running `wrun init`, which will create a config file in the current directory with all of the options set to their respective default values.
 
 > Some properties exist both globally and per command (e.g. `delayToKill` and `fatalIfErr`). The command version, if exists, always takes precedence over the global version.
 
@@ -37,7 +37,7 @@ The time in milliseconds to wait after sending a SIGINT and before sending a SIG
 Whether to skip subsequent commands in case the current one returns an error. Defaults to false.
 
 #### `ignoreRegExps`
-List of regular expressions to ignore. The `wrun.json` file and the `.git` directory are always ignored. To learn more about the syntax of the regular expressions, click [here](https://github.com/google/re2/wiki/Syntax). Every directory path matched against these regular expressions ends with a `/`.
+List of regular expressions to ignore. Any file/directory ending with `wrun.yml` or `wrun.yaml` and the `.git` directory are always ignored. To learn more about the syntax of the regular expressions, click [here](https://github.com/google/re2/wiki/Syntax). Every directory path matched against these regular expressions ends with a `/`.
 
 #### `cmds`
 List of commands to be executed sequentially.

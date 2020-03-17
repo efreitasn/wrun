@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -192,4 +193,39 @@ func TestParseConfigFile(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHasConfigFile(t *testing.T) {
+	t.Run("wrun.yaml", func(t *testing.T) {
+		_, err := os.Create("wrun.yaml")
+		if err != nil {
+			t.Fatalf("unexpected err: %v", err)
+		}
+		defer os.Remove("wrun.yaml")
+
+		res := hasConfigFile()
+		if !res {
+			t.Error("expected true, got false")
+		}
+	})
+
+	t.Run("wrun.yml", func(t *testing.T) {
+		_, err := os.Create("wrun.yml")
+		if err != nil {
+			t.Fatalf("unexpected err: %v", err)
+		}
+		defer os.Remove("wrun.yml")
+
+		res := hasConfigFile()
+		if !res {
+			t.Error("expected true, got false")
+		}
+	})
+
+	t.Run("none", func(t *testing.T) {
+		res := hasConfigFile()
+		if res {
+			t.Error("expected false, got true")
+		}
+	})
 }
