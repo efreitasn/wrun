@@ -26,7 +26,8 @@ type W struct {
 	done          chan struct{}
 }
 
-// New creates a watcher for dirPath recursively.
+// New creates a watcher for dirPath recursively, ignoring any path that matches at least one of ignoreRegExps.
+// Directory paths matched against ignoreRegExps end with a /.
 func New(dirPath string, ignoreRegExps []*regexp.Regexp) (*W, error) {
 	fd, err := unix.InotifyInit1(0)
 	if err != nil {
@@ -137,13 +138,13 @@ func (w *W) Start() (events chan Event, errs chan error) {
 					continue
 				}
 
+				isDir := res.inotifyE.Mask&unix.IN_ISDIR == unix.IN_ISDIR
+
 				fileOrDirPath := path.Join(w.tree.path(parentDir.wd), res.name)
 				// if it matches, it means it should be ignored
-				if w.matchPath(fileOrDirPath) {
+				if w.matchPath(fileOrDirPath, isDir) {
 					continue
 				}
-
-				isDir := res.inotifyE.Mask&unix.IN_ISDIR == unix.IN_ISDIR
 
 				switch {
 				// this event is only handled if it is from the root,
@@ -334,7 +335,7 @@ func (w *W) addDirsStartingAt(rootPath string) error {
 func (w *W) addDir(name string, parentWd int) (wd int, match bool, err error) {
 	dirPath := path.Join(w.tree.path(parentWd), name)
 
-	if w.matchPath(dirPath) {
+	if w.matchPath(dirPath, true) {
 		return -1, true, nil
 	}
 
@@ -372,7 +373,11 @@ func (w *W) removeFromInotify(wd int) error {
 }
 
 // matchPath returns whether the given path matchs any of w.ignoreRegExps.
-func (w *W) matchPath(path string) bool {
+func (w *W) matchPath(path string, isDir bool) bool {
+	if isDir {
+		path += "/"
+	}
+
 	for _, rx := range w.ignoreRegExps {
 		if match := rx.MatchString(path); match {
 			return true

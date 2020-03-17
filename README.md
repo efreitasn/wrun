@@ -37,7 +37,7 @@ The time in milliseconds to wait after sending a SIGINT and before sending a SIG
 Whether to skip subsequent commands in case the current one returns an error. Defaults to false.
 
 #### `ignoreRegExps`
-List of regular expressions to ignore. The `wrun.json` file and the `.git` directory are always ignored. To learn more about the syntax of the regular expressions, click [here](https://github.com/google/re2/wiki/Syntax).
+List of regular expressions to ignore. The `wrun.json` file and the `.git` directory are always ignored. To learn more about the syntax of the regular expressions, click [here](https://github.com/google/re2/wiki/Syntax). Every directory path matched against these regular expressions ends with a `/`.
 
 #### `cmds`
 List of commands to be executed sequentially.

@@ -540,6 +540,65 @@ func TestWatcher_modifyEvent(t *testing.T) {
 		case <-time.After(eventTimeout):
 		}
 	})
+
+	t.Run("modify file (regexp) (2)", func(t *testing.T) {
+		filePath := "foobar"
+		_, err := os.Create(filePath)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", filePath, err)
+		}
+		defer os.Remove("foobar")
+
+		err = os.MkdirAll("a/foobar", os.ModeDir|os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", "a/b/c/d/e", err)
+		}
+		defer os.RemoveAll("a")
+
+		file2Path := path.Join("a", "foobar", "b.txt")
+		_, err = os.Create(file2Path)
+		if err != nil {
+			t.Fatalf("unexpected error creating %v: %v", file2Path, err)
+		}
+
+		w, err := New(".", []*regexp.Regexp{
+			regexp.MustCompile("foobar$"),
+		})
+		expectedErr := error(nil)
+		if err != expectedErr {
+			t.Fatalf("got %v, want %v", err, expectedErr)
+		}
+		defer w.Close()
+
+		events, errs := w.Start()
+
+		err = ioutil.WriteFile(filePath, []byte("foo"), os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error writing to %v: %v", filePath, err)
+		}
+
+		err = ioutil.WriteFile(file2Path, []byte("foo"), os.ModePerm)
+		if err != nil {
+			t.Fatalf("unexpected error writing to %v: %v", file2Path, err)
+		}
+
+		expectedEvent := ModifyEvent{
+			path: file2Path,
+		}
+
+		select {
+		case e := <-events:
+			if e != expectedEvent {
+				t.Fatalf("got %v, want %v", e, expectedEvent)
+			}
+		case err := <-errs:
+			t.Fatalf("unexpected err: %v", err)
+		case <-w.done:
+			t.Fatal("channel closed")
+		case <-time.After(eventTimeout):
+			t.Fatal("timeout reached waiting for event")
+		}
+	})
 }
 
 func TestWatcher_renameEvent(t *testing.T) {
