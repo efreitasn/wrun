@@ -1,6 +1,5 @@
 /*
-Package watcher provides an inotify-based approach for watching file system events on the working
-directory and its descendants recursively.
+Package watcher provides an inotify-based approach for watching file system events from a directory recursively.
 */
 package watcher
 
@@ -18,7 +17,7 @@ import (
 const eventsBufferSize = (unix.SizeofInotifyEvent + 1 + unix.NAME_MAX) * 64
 const inotifyMask = unix.IN_CREATE | unix.IN_DELETE | unix.IN_CLOSE_WRITE | unix.IN_MOVED_FROM | unix.IN_MOVED_TO
 
-// W is a watcher for the working directory.
+// W is a watcher for a directory.
 type W struct {
 	fd            int
 	closed        bool
@@ -27,8 +26,8 @@ type W struct {
 	done          chan struct{}
 }
 
-// New creates a watcher for the working directory.
-func New(ignoreRegExps []*regexp.Regexp) (*W, error) {
+// New creates a watcher for dirPath recursively.
+func New(dirPath string, ignoreRegExps []*regexp.Regexp) (*W, error) {
 	fd, err := unix.InotifyInit1(0)
 	if err != nil {
 		return nil, fmt.Errorf("creating inotify instance: %v", err)
@@ -42,13 +41,13 @@ func New(ignoreRegExps []*regexp.Regexp) (*W, error) {
 		ignoreRegExps: ignoreRegExps,
 	}
 
-	rootWd, err := w.addToInotify(".")
+	rootWd, err := w.addToInotify(dirPath)
 	if err != nil {
 		return nil, err
 	}
-	w.tree.setRoot(rootWd)
+	w.tree.setRoot(dirPath, rootWd)
 
-	err = w.addDirsStartingAt(".")
+	err = w.addDirsStartingAt(dirPath)
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +298,7 @@ func (w *W) Close() error {
 // addDirsStartingAt adds every directory descendant of rootPath recursively
 // to the tree and to the inotify instance.
 // This functions assumes that there's a node in the tree whose path is equal
-// to path.Clean(rootPath).
+// to cleanPath(rootPath).
 func (w *W) addDirsStartingAt(rootPath string) error {
 	entries, err := ioutil.ReadDir(rootPath)
 	if err != nil {
@@ -312,7 +311,7 @@ func (w *W) addDirsStartingAt(rootPath string) error {
 
 			_, match, err := w.addDir(
 				entry.Name(),
-				w.tree.find(path.Clean(rootPath)).wd,
+				w.tree.find(cleanPath(rootPath)).wd,
 			)
 			if match {
 				continue

@@ -7,8 +7,7 @@ import (
 )
 
 // watchedDir represents a directory being watched.
-// If it's the root, parent is equal to nil and name
-// is equal to ".".
+// If it's the root, parent=nil.
 type watchedDir struct {
 	wd     int
 	name   string
@@ -87,14 +86,14 @@ func newWatchedDirsTree() *watchedDirsTree {
 	}
 }
 
-func (wdt *watchedDirsTree) setRoot(wd int) {
+func (wdt *watchedDirsTree) setRoot(path string, wd int) {
 	if wdt.root != nil {
 		panic("there's already a root")
 	}
 
 	d := &watchedDir{
 		wd:       wd,
-		name:     ".",
+		name:     cleanPath(path),
 		children: map[string]*watchedDir{},
 	}
 
@@ -221,17 +220,18 @@ func (wdt *watchedDirsTree) invalidate(wd int) {
 }
 
 func (wdt *watchedDirsTree) find(path string) *watchedDir {
+	if wdt.root.name == path {
+		return wdt.root
+	}
+
 	if path == "" {
 		return nil
 	}
 
 	wd, ok := wdt.cache.wd(path)
 	if !ok {
-		pathSegments := strings.Split(path, string(filepath.Separator))
-
-		if wdt.root.name == path {
-			return wdt.root
-		}
+		pathWithoutRoot := strings.TrimPrefix(path, wdt.root.name+"/")
+		pathSegments := strings.Split(pathWithoutRoot, string(filepath.Separator))
 
 		parent := wdt.root
 		for _, pathSegment := range pathSegments {
@@ -247,4 +247,15 @@ func (wdt *watchedDirsTree) find(path string) *watchedDir {
 	}
 
 	return wdt.get(wd)
+}
+
+// cleanPath cleans the path p.
+// It has the same behaviour as path.Clean(), except when p == ".",
+// which results in an empty string.
+func cleanPath(p string) string {
+	if p == "." {
+		return ""
+	}
+
+	return path.Clean(p)
 }
