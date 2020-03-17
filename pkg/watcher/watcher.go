@@ -195,8 +195,7 @@ func (w *W) Start() (events chan Event, errs chan error) {
 					}
 				case res.inotifyE.Mask&unix.IN_CLOSE_WRITE == unix.IN_CLOSE_WRITE:
 					e = ModifyEvent{
-						path:  fileOrDirPath,
-						isDir: isDir,
+						path: fileOrDirPath,
 					}
 				case res.inotifyE.Mask&unix.IN_MOVED_FROM == unix.IN_MOVED_FROM:
 					mvEvents.addMvFrom(int(res.inotifyE.Cookie), res.name, int(res.inotifyE.Wd), isDir)
