@@ -12,10 +12,9 @@ import (
 var defaultDelayToKill = 1000
 var defaultConfigFilePath = "wrun.yaml"
 
-// alwaysIgnoreRegExps is a list of regexps that are always ignored.
 var alwaysIgnoreRegExps = []*regexp.Regexp{
-	regexp.MustCompile("^.git*"),
 	regexp.MustCompile("wrun\\.(?:(?:yml)|(?:yaml))$"),
+	regexp.MustCompile("(?:^\\..*)|(?:/\\.)"),
 }
 
 type configFileCmd struct {
