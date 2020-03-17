@@ -132,6 +132,11 @@ func (w *W) Start() (events chan Event, errs chan error) {
 				var e Event
 
 				parentDir := w.tree.get(int(res.inotifyE.Wd))
+				// this happens when an IN_IGNORED event about an already
+				// removed directory is received.
+				if parentDir == nil {
+					continue
+				}
 
 				fileOrDirPath := path.Join(w.tree.path(parentDir.wd), res.name)
 				// if it matches, it means it should be ignored
