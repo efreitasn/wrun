@@ -1,17 +1,22 @@
 package watcher
 
-import "testing"
-
-import "path"
+import (
+	"path"
+	"testing"
+)
 
 func TestWatchedDirsTreeSetRoot(t *testing.T) {
 	wdt := newWatchedDirsTree()
 
 	rootWd := 0
-	wdt.setRoot(rootWd)
+	wdt.setRoot(".", rootWd)
 
 	if wdt.root == nil {
 		t.Fatalf("got %v, want %v", nil, "non-nil value")
+	}
+
+	if wdt.root.name != "" {
+		t.Fatalf("got %v, want %v", wdt.root.name, "empty string")
 	}
 
 	if wdt.root.wd != rootWd {
@@ -21,7 +26,7 @@ func TestWatchedDirsTreeSetRoot(t *testing.T) {
 
 func TestWatchedDirsTreeAddHasGet(t *testing.T) {
 	wdt := newWatchedDirsTree()
-	wdt.setRoot(0)
+	wdt.setRoot(".", 0)
 
 	dirWd := 1
 	dirName := "some"
@@ -54,7 +59,7 @@ func TestWatchedDirsTreeAddHasGet(t *testing.T) {
 
 func TestWatchedDirsTreeRmHasGet(t *testing.T) {
 	wdt := newWatchedDirsTree()
-	wdt.setRoot(0)
+	wdt.setRoot(".", 0)
 
 	dirWd := 1
 	dirName := "some"
@@ -76,7 +81,7 @@ func TestWatchedDirsTreeRmHasGet(t *testing.T) {
 
 func TestWatchedDirsTreeRmHasGet_child(t *testing.T) {
 	wdt := newWatchedDirsTree()
-	wdt.setRoot(0)
+	wdt.setRoot(".", 0)
 
 	dirWd := 1
 	dirName := "some"
@@ -101,7 +106,7 @@ func TestWatchedDirsTreeRmHasGet_child(t *testing.T) {
 func TestWatchedDirsTreeMvInvalidate(t *testing.T) {
 	t.Run("only parent", func(t *testing.T) {
 		wdt := newWatchedDirsTree()
-		wdt.setRoot(0)
+		wdt.setRoot(".", 0)
 
 		dir1Wd := 1
 		dir1Name := "some"
@@ -163,7 +168,7 @@ func TestWatchedDirsTreeMvInvalidate(t *testing.T) {
 
 	t.Run("only name", func(t *testing.T) {
 		wdt := newWatchedDirsTree()
-		wdt.setRoot(0)
+		wdt.setRoot(".", 0)
 
 		dir1Wd := 1
 		dir1Name := "some"
@@ -203,7 +208,7 @@ func TestWatchedDirsTreeMvInvalidate(t *testing.T) {
 
 	t.Run("name and parent", func(t *testing.T) {
 		wdt := newWatchedDirsTree()
-		wdt.setRoot(0)
+		wdt.setRoot(".", 0)
 
 		dir1Wd := 1
 		dir1Name := "some"
@@ -266,72 +271,142 @@ func TestWatchedDirsTreeMvInvalidate(t *testing.T) {
 }
 
 func TestWatchedDirsTreePath(t *testing.T) {
-	wdt := newWatchedDirsTree()
-	wdt.setRoot(0)
+	t.Run("root relative path", func(t *testing.T) {
+		wdt := newWatchedDirsTree()
+		wdt.setRoot(".", 0)
 
-	dir1Wd := 1
-	dir1Name := "some"
-	dir1ParentWd := wdt.root.wd
-	dir2Wd := 2
-	dir2Name := "foo"
-	dir2ParentWd := dir1Wd
-	dir3Wd := 3
-	dir3Name := "bar"
-	dir3ParentWd := dir2Wd
+		dir1Wd := 1
+		dir1Name := "some"
+		dir1ParentWd := wdt.root.wd
+		dir2Wd := 2
+		dir2Name := "foo"
+		dir2ParentWd := dir1Wd
+		dir3Wd := 3
+		dir3Name := "bar"
+		dir3ParentWd := dir2Wd
 
-	wdt.add(dir1Wd, dir1Name, dir1ParentWd)
-	wdt.add(dir2Wd, dir2Name, dir2ParentWd)
-	wdt.add(dir3Wd, dir3Name, dir3ParentWd)
+		wdt.add(dir1Wd, dir1Name, dir1ParentWd)
+		wdt.add(dir2Wd, dir2Name, dir2ParentWd)
+		wdt.add(dir3Wd, dir3Name, dir3ParentWd)
 
-	expectedDir3Path := path.Join(
-		dir1Name,
-		dir2Name,
-		dir3Name,
-	)
-	dir3Path := wdt.path(dir3Wd)
+		expectedDir3Path := path.Join(
+			dir1Name,
+			dir2Name,
+			dir3Name,
+		)
+		dir3Path := wdt.path(dir3Wd)
 
-	if dir3Path != expectedDir3Path {
-		t.Errorf("got %v, want %v", dir3Path, expectedDir3Path)
-	}
+		if dir3Path != expectedDir3Path {
+			t.Errorf("got %v, want %v", dir3Path, expectedDir3Path)
+		}
+	})
+
+	t.Run("root absolute path", func(t *testing.T) {
+		wdt := newWatchedDirsTree()
+		wdt.setRoot("/home/usr", 0)
+
+		dir1Wd := 1
+		dir1Name := "some"
+		dir1ParentWd := wdt.root.wd
+		dir2Wd := 2
+		dir2Name := "foo"
+		dir2ParentWd := dir1Wd
+		dir3Wd := 3
+		dir3Name := "bar"
+		dir3ParentWd := dir2Wd
+
+		wdt.add(dir1Wd, dir1Name, dir1ParentWd)
+		wdt.add(dir2Wd, dir2Name, dir2ParentWd)
+		wdt.add(dir3Wd, dir3Name, dir3ParentWd)
+
+		expectedDir3Path := path.Join(
+			"/home/usr",
+			dir1Name,
+			dir2Name,
+			dir3Name,
+		)
+		dir3Path := wdt.path(dir3Wd)
+
+		if dir3Path != expectedDir3Path {
+			t.Errorf("got %v, want %v", dir3Path, expectedDir3Path)
+		}
+	})
 }
 
 func TestWatchedDirsTreeFind(t *testing.T) {
-	wdt := newWatchedDirsTree()
-	wdt.setRoot(0)
+	t.Run("root relative path", func(t *testing.T) {
+		wdt := newWatchedDirsTree()
+		wdt.setRoot(".", 0)
 
-	dir1Wd := 1
-	dir1Name := "some"
-	dir1ParentWd := wdt.root.wd
-	dir2Wd := 2
-	dir2Name := "foo"
-	dir2ParentWd := dir1Wd
-	dir3Wd := 3
-	dir3Name := "bar"
-	dir3ParentWd := dir2Wd
+		dir1Wd := 1
+		dir1Name := "some"
+		dir1ParentWd := wdt.root.wd
+		dir2Wd := 2
+		dir2Name := "foo"
+		dir2ParentWd := dir1Wd
+		dir3Wd := 3
+		dir3Name := "bar"
+		dir3ParentWd := dir2Wd
 
-	wdt.add(dir1Wd, dir1Name, dir1ParentWd)
-	wdt.add(dir2Wd, dir2Name, dir2ParentWd)
-	wdt.add(dir3Wd, dir3Name, dir3ParentWd)
+		wdt.add(dir1Wd, dir1Name, dir1ParentWd)
+		wdt.add(dir2Wd, dir2Name, dir2ParentWd)
+		wdt.add(dir3Wd, dir3Name, dir3ParentWd)
 
-	// the path was created this way instead of using
-	// wdt.path() so that a cache entry wouldn't be
-	// created.
-	dir3Path := path.Join(
-		dir1Name,
-		dir2Name,
-		dir3Name,
-	)
-	dir3 := wdt.get(dir3Wd)
-	findRes := wdt.find(dir3Path)
+		// the path was created this way instead of using
+		// wdt.path() so that a cache entry wouldn't be
+		// created.
+		dir3Path := path.Join(
+			dir1Name,
+			dir2Name,
+			dir3Name,
+		)
+		dir3 := wdt.get(dir3Wd)
+		findRes := wdt.find(dir3Path)
 
-	if findRes != dir3 {
-		t.Errorf("got %v, want %v", findRes, dir3)
-	}
+		if findRes != dir3 {
+			t.Errorf("got %v, want %v", findRes, dir3)
+		}
+	})
+
+	t.Run("root absolute path", func(t *testing.T) {
+		wdt := newWatchedDirsTree()
+		wdt.setRoot("/home/foo", 0)
+
+		dir1Wd := 1
+		dir1Name := "some"
+		dir1ParentWd := wdt.root.wd
+		dir2Wd := 2
+		dir2Name := "foo"
+		dir2ParentWd := dir1Wd
+		dir3Wd := 3
+		dir3Name := "bar"
+		dir3ParentWd := dir2Wd
+
+		wdt.add(dir1Wd, dir1Name, dir1ParentWd)
+		wdt.add(dir2Wd, dir2Name, dir2ParentWd)
+		wdt.add(dir3Wd, dir3Name, dir3ParentWd)
+
+		// the path was created this way instead of using
+		// wdt.path() so that a cache entry wouldn't be
+		// created.
+		dir3Path := path.Join(
+			"/home/foo",
+			dir1Name,
+			dir2Name,
+			dir3Name,
+		)
+		dir3 := wdt.get(dir3Wd)
+		findRes := wdt.find(dir3Path)
+
+		if findRes != dir3 {
+			t.Errorf("got %v, want %v", findRes, dir3)
+		}
+	})
 }
 
 func TestWatchedDirsTreeFind_notFound(t *testing.T) {
 	wdt := newWatchedDirsTree()
-	wdt.setRoot(0)
+	wdt.setRoot(".", 0)
 
 	dir1Wd := 1
 	dir1Name := "some"

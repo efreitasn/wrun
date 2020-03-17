@@ -26,7 +26,12 @@ func TestWatcher_createEvent(t *testing.T) {
 		}
 		defer os.RemoveAll("f")
 
-		w, err := New([]*regexp.Regexp{})
+		workingDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("unexpect err: %v", err)
+		}
+
+		w, err := New(workingDir, []*regexp.Regexp{})
 		expectedErr := error(nil)
 		if err != expectedErr {
 			t.Fatalf("got %v, want %v", err, expectedErr)
@@ -43,7 +48,7 @@ func TestWatcher_createEvent(t *testing.T) {
 
 		expectedEvent := CreateEvent{
 			isDir: false,
-			path:  filePath,
+			path:  path.Join(workingDir, filePath),
 		}
 
 		select {
@@ -73,7 +78,7 @@ func TestWatcher_createEvent(t *testing.T) {
 		}
 		defer os.RemoveAll("f")
 
-		w, err := New([]*regexp.Regexp{})
+		w, err := New(".", []*regexp.Regexp{})
 		expectedErr := error(nil)
 		if err != expectedErr {
 			t.Fatalf("got %v, want %v", err, expectedErr)
@@ -144,7 +149,7 @@ func TestWatcher_createEvent(t *testing.T) {
 		}
 		defer os.RemoveAll("f")
 
-		w, err := New([]*regexp.Regexp{
+		w, err := New(".", []*regexp.Regexp{
 			regexp.MustCompile("^a/b/c/d/e/a.txt$"),
 		})
 		expectedErr := error(nil)
@@ -185,7 +190,7 @@ func TestWatcher_createEvent(t *testing.T) {
 		}
 		defer os.RemoveAll("f")
 
-		w, err := New([]*regexp.Regexp{
+		w, err := New(".", []*regexp.Regexp{
 			regexp.MustCompile("^a/b/c/d/e*"),
 		})
 		expectedErr := error(nil)
@@ -250,7 +255,7 @@ func TestWatcher_deleteEvent(t *testing.T) {
 			t.Fatalf("unexpected error creating %v: %v", filePath, err)
 		}
 
-		w, err := New([]*regexp.Regexp{})
+		w, err := New(".", []*regexp.Regexp{})
 		expectedErr := error(nil)
 		if err != expectedErr {
 			t.Fatalf("got %v, want %v", err, expectedErr)
@@ -302,7 +307,12 @@ func TestWatcher_deleteEvent(t *testing.T) {
 			t.Fatalf("unexpected error creating %v: %v", dirPath, err)
 		}
 
-		w, err := New([]*regexp.Regexp{})
+		workingDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("unexpect err: %v", err)
+		}
+
+		w, err := New(workingDir, []*regexp.Regexp{})
 		expectedErr := error(nil)
 		if err != expectedErr {
 			t.Fatalf("got %v, want %v", err, expectedErr)
@@ -318,7 +328,7 @@ func TestWatcher_deleteEvent(t *testing.T) {
 
 		expectedEvent := DeleteEvent{
 			isDir: true,
-			path:  dirPath,
+			path:  path.Join(workingDir, dirPath),
 		}
 
 		select {
@@ -354,7 +364,7 @@ func TestWatcher_deleteEvent(t *testing.T) {
 			t.Fatalf("unexpected error creating %v: %v", filePath, err)
 		}
 
-		w, err := New([]*regexp.Regexp{
+		w, err := New(".", []*regexp.Regexp{
 			regexp.MustCompile("^" + filePath + "$"),
 		})
 		expectedErr := error(nil)
@@ -400,7 +410,7 @@ func TestWatcher_deleteEvent(t *testing.T) {
 			t.Fatalf("unexpected error creating %v: %v", dirPath, err)
 		}
 
-		w, err := New([]*regexp.Regexp{
+		w, err := New(".", []*regexp.Regexp{
 			regexp.MustCompile("^" + dirPath + "$"),
 		})
 		expectedErr := error(nil)
@@ -448,7 +458,12 @@ func TestWatcher_modifyEvent(t *testing.T) {
 			t.Fatalf("unexpected error creating %v: %v", filePath, err)
 		}
 
-		w, err := New([]*regexp.Regexp{})
+		workingDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("unexpect err: %v", err)
+		}
+
+		w, err := New(workingDir, []*regexp.Regexp{})
 		expectedErr := error(nil)
 		if err != expectedErr {
 			t.Fatalf("got %v, want %v", err, expectedErr)
@@ -464,7 +479,7 @@ func TestWatcher_modifyEvent(t *testing.T) {
 
 		expectedEvent := ModifyEvent{
 			isDir: false,
-			path:  filePath,
+			path:  path.Join(workingDir, filePath),
 		}
 
 		select {
@@ -500,7 +515,7 @@ func TestWatcher_modifyEvent(t *testing.T) {
 			t.Fatalf("unexpected error creating %v: %v", filePath, err)
 		}
 
-		w, err := New([]*regexp.Regexp{
+		w, err := New(".", []*regexp.Regexp{
 			regexp.MustCompile("^" + filePath + "$"),
 		})
 		expectedErr := error(nil)
@@ -549,7 +564,7 @@ func TestWatcher_renameEvent(t *testing.T) {
 			t.Fatalf("unexpected error creating %v: %v", oldFilePath, err)
 		}
 
-		w, err := New([]*regexp.Regexp{})
+		w, err := New(".", []*regexp.Regexp{})
 		expectedErr := error(nil)
 		if err != expectedErr {
 			t.Fatalf("got %v, want %v", err, expectedErr)
@@ -603,7 +618,7 @@ func TestWatcher_renameEvent(t *testing.T) {
 			t.Fatalf("unexpected error creating %v: %v", oldFilePath, err)
 		}
 
-		w, err := New([]*regexp.Regexp{
+		w, err := New(".", []*regexp.Regexp{
 			regexp.MustCompile("^f.*"),
 		})
 		expectedErr := error(nil)
@@ -659,8 +674,13 @@ func TestWatcher_renameEvent(t *testing.T) {
 			t.Fatalf("unexpected error creating %v: %v", oldFilePath, err)
 		}
 
-		w, err := New([]*regexp.Regexp{
-			regexp.MustCompile("^f.*"),
+		workingDir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("unexpect err: %v", err)
+		}
+
+		w, err := New(workingDir, []*regexp.Regexp{
+			regexp.MustCompile("^" + workingDir + "/f.*"),
 		})
 		expectedErr := error(nil)
 		if err != expectedErr {
@@ -677,7 +697,7 @@ func TestWatcher_renameEvent(t *testing.T) {
 
 		expectedEvent := RenameEvent{
 			isDir:   false,
-			path:    newFilePath,
+			path:    path.Join(workingDir, newFilePath),
 			OldPath: "",
 		}
 
@@ -715,7 +735,7 @@ func TestWatcher_renameEvent(t *testing.T) {
 			t.Fatalf("unexpected error creating %v: %v", oldFilePath, err)
 		}
 
-		w, err := New([]*regexp.Regexp{
+		w, err := New(".", []*regexp.Regexp{
 			regexp.MustCompile("^f.*"),
 			regexp.MustCompile("^a.*"),
 		})

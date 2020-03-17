@@ -36,7 +36,7 @@ func Start(cts *cfop.CmdTermsSet) {
 	signal.Notify(deadlySignals, os.Interrupt, syscall.SIGTERM)
 
 	// Watcher
-	w, err := watcher.New(c.IgnoreRegExps)
+	w, err := watcher.New(".", c.IgnoreRegExps)
 	if err != nil {
 		logs.Err.Printf("watcher: %v\n", err)
 
