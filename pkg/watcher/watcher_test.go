@@ -478,8 +478,7 @@ func TestWatcher_modifyEvent(t *testing.T) {
 		}
 
 		expectedEvent := ModifyEvent{
-			isDir: false,
-			path:  path.Join(workingDir, filePath),
+			path: path.Join(workingDir, filePath),
 		}
 
 		select {
