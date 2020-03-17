@@ -1,1 +1,0 @@
-After building the binary (run `make build` in case you haven't built it yet), run `make install`. Or just run `make`, which runs both of them.

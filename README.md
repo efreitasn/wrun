@@ -1,22 +1,18 @@
 # wrun
 wrun is an inotify-based CLI that runs specified commands whenever the contents in the current directory change.
 
-## Installing
-You can install it by building the CLI yourself of download one of the release files available on the [releases page](https://github.com/efreitasn/wrun/releases). Instructions for both are below.
+## Building
+You can download the binary available on the [releases page](https://github.com/efreitasn/wrun/releases) or clone this repo and run `make`.
 
-### Building (requires Go v1.13)
+## Completion
+Just add one of the following lines to your `.bashrc` or `.zshrc`:
 
-Once the repository is cloned, run
+```bash
+# .bashrc
+source <(wrun completion bash)
 
-```shell
-make
-```
-
-### From a release file
-Extract the contents of the tarball or of the zip file to a directory. In that directory, run:
-
-```shell
-make install
+# .zshrc
+source <(wrun completion zsh)
 ```
 
 ## Watched events
