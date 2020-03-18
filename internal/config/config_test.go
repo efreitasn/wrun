@@ -15,12 +15,12 @@ func TestParseConfigFile(t *testing.T) {
 	boolFalse := false
 
 	tests := []struct {
-		cf  configFile
+		cf  configFileData
 		res Config
 		err error
 	}{
 		{
-			configFile{
+			configFileData{
 				DelayToKill:   &delay700,
 				FatalIfErr:    true,
 				IgnoreRegExps: []string{"aa.*"},
@@ -43,7 +43,7 @@ func TestParseConfigFile(t *testing.T) {
 			nil,
 		},
 		{
-			configFile{
+			configFileData{
 				DelayToKill: &delay700,
 				FatalIfErr:  true,
 				Cmds: []configFileCmd{
@@ -65,7 +65,7 @@ func TestParseConfigFile(t *testing.T) {
 			nil,
 		},
 		{
-			configFile{
+			configFileData{
 				DelayToKill: &delay900,
 				FatalIfErr:  true,
 				Cmds: []configFileCmd{
@@ -97,7 +97,7 @@ func TestParseConfigFile(t *testing.T) {
 			nil,
 		},
 		{
-			configFile{
+			configFileData{
 				DelayToKill: &delay900,
 				FatalIfErr:  true,
 				Cmds: []configFileCmd{
@@ -130,7 +130,7 @@ func TestParseConfigFile(t *testing.T) {
 			nil,
 		},
 		{
-			configFile{
+			configFileData{
 				FatalIfErr: true,
 				Cmds: []configFileCmd{
 					configFileCmd{

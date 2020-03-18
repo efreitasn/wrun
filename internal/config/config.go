@@ -10,7 +10,10 @@ import (
 )
 
 var defaultDelayToKill = 1000
-var defaultConfigFilePath = "wrun.yaml"
+var defaultConfigFilePaths = []string{
+	"wrun.yaml",
+	"wrun.yml",
+}
 
 var alwaysIgnoreRegExps = []*regexp.Regexp{
 	regexp.MustCompile("wrun\\.(?:(?:yml)|(?:yaml))$"),
@@ -23,7 +26,7 @@ type configFileCmd struct {
 	Terms       []string `yaml:"terms"`
 }
 
-type configFile struct {
+type configFileData struct {
 	DelayToKill   *int            `yaml:"delayToKill"`
 	FatalIfErr    bool            `yaml:"fatalIfErr"`
 	Cmds          []configFileCmd `yaml:"cmds"`
@@ -46,23 +49,14 @@ type Config struct {
 
 // GetConfig returns the data from the config file.
 func GetConfig(configFilePath string) (*Config, error) {
-	if configFilePath == "" {
-		configFilePath = defaultConfigFilePath
-	}
-
-	f, err := os.Open(configFilePath)
+	configFile, err := getConfigFile(configFilePath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, errors.New("file doesn't exist")
-		}
-
 		return nil, err
 	}
-	defer f.Close()
 
-	var cf configFile
+	var cf configFileData
 
-	yamlDec := yaml.NewDecoder(f)
+	yamlDec := yaml.NewDecoder(configFile)
 
 	err = yamlDec.Decode(&cf)
 	if err != nil {
@@ -84,7 +78,7 @@ func CreateConfigFile() error {
 	}
 
 	file, err := os.OpenFile(
-		defaultConfigFilePath,
+		defaultConfigFilePaths[0],
 		os.O_CREATE|os.O_EXCL|os.O_WRONLY,
 		0666,
 	)
@@ -93,7 +87,7 @@ func CreateConfigFile() error {
 	}
 
 	cmdDefaultFatalIfErr := false
-	cf := configFile{
+	cf := configFileData{
 		DelayToKill: &defaultDelayToKill,
 		FatalIfErr:  false,
 		Cmds: []configFileCmd{configFileCmd{
@@ -112,10 +106,40 @@ func CreateConfigFile() error {
 	return nil
 }
 
+func getConfigFile(configFilePath string) (*os.File, error) {
+	if configFilePath != "" {
+		f, err := os.Open(configFilePath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil, errors.New("file doesn't exist")
+			}
+
+			return nil, err
+		}
+
+		return f, nil
+	}
+
+	for _, filePath := range defaultConfigFilePaths {
+		f, err := os.Open(filePath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+
+			return nil, err
+		}
+
+		return f, nil
+	}
+
+	return nil, errors.New("not found")
+}
+
 // parseConfigFile transforms a configFile to a config.
 // Note that this function doesn't perform any kind of validation
 // on the configFile.
-func parseConfigFile(cf configFile) (*Config, error) {
+func parseConfigFile(cf configFileData) (*Config, error) {
 	if cf.Cmds == nil {
 		return nil, errors.New("missing cmds field")
 	}
