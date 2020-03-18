@@ -25,5 +25,5 @@ for TARGET in "${TARGETS[@]}"; do
 
   echo "${OS}-${ARCH}"
 
-  make -B build NAME="release/wrun-${VERSION}-${OS}-${ARCH}" GOOS=$OS GOARCH=$ARCH
+  make -B build NAME="release/wrun-${VERSION}-${OS}-${ARCH}" GOOS="$OS" GOARCH="$ARCH"
 done
