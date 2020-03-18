@@ -141,4 +141,40 @@ func TestStartCmd(t *testing.T) {
 		case <-time.After(2 * time.Second):
 		}
 	})
+
+	t.Run("no config file", func(t *testing.T) {
+		rp, wp := io.Pipe()
+		logs.Err.SetOutput(wp)
+		r := bufio.NewReader(rp)
+
+		go func() {
+			startCmd([]string{"wrun", "start"})
+		}()
+
+		strCh := make(chan struct {
+			str string
+			err error
+		})
+		go func() {
+			str, err := r.ReadString('\n')
+			strCh <- struct {
+				str string
+				err error
+			}{str, err}
+		}()
+
+		select {
+		case str := <-strCh:
+			if str.err != nil {
+				t.Fatalf("unexpected err: %v", str.err)
+			}
+
+			expectedStr := logs.Err.Prefix() + "config file: not found\n"
+			if str.str != expectedStr {
+				t.Fatalf("got %v, want %v", str.str, expectedStr)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("timeout reached")
+		}
+	})
 }
