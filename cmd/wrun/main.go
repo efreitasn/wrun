@@ -9,6 +9,12 @@ import (
 )
 
 func main() {
+	if err := startCmd(os.Args); err != nil {
+		logs.Err.Println(err)
+	}
+}
+
+func startCmd(args []string) error {
 	set := cfop.NewSubcmdsSet()
 
 	set.Add(
@@ -58,10 +64,12 @@ func main() {
 	err := cfop.Init(
 		"wrun",
 		"Run commands whenever the contents in the current directory change",
-		os.Args,
+		args,
 		set,
 	)
 	if err != nil {
-		logs.Err.Println(err)
+		return err
 	}
+
+	return nil
 }
