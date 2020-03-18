@@ -8,39 +8,45 @@ on:
     branches:
       - master
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
 jobs:
-  test-and-build:
-    name: Test and build
+  test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
+      - name: Download go@v1.14
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.14
 
-    - name: Download go@v1.13
-      uses: actions/setup-go@v1
-      with:
-        go-version: 1.13
-        
-    - name: Checkout repo
-      uses: actions/checkout@v1
-      
-    - name: Download deps
-      run: go mod download
+      - name: Checkout repo
+        uses: actions/checkout@v1
 
-    - name: Test
-      run: go test ./... -v -race
+      - name: Download deps
+        run: go mod download
 
-    - name: Build
-      run: make build
+      - name: Test
+        run: go test ./... -v -race
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download go@v1.14
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.14
 
-    - name: Create binaries for release
-      if: startsWith(github.ref, 'refs/tags/')
-      run: bash release.sh
+      - name: Build
+        run: make
 
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        files: release/*
-      env:
-        GITHUB_TOKEN: ${{ secrets.GHUB_TOKEN }}
+      - name: Create binaries for release
+        run: bash release.sh
+
+      - name: Add binaries to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
