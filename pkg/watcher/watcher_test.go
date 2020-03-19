@@ -38,8 +38,6 @@ func TestWatcher_createEvent(t *testing.T) {
 		}
 		defer w.Close()
 
-		events, errs := w.Start()
-
 		filePath := path.Join("a/b/c/d/e", "a.txt")
 		_, err = os.Create(filePath)
 		if err != nil {
@@ -52,11 +50,11 @@ func TestWatcher_createEvent(t *testing.T) {
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			if e != expectedEvent {
 				t.Fatalf("got %v, want %v", e, expectedEvent)
 			}
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")
@@ -85,8 +83,6 @@ func TestWatcher_createEvent(t *testing.T) {
 		}
 		defer w.Close()
 
-		events, errs := w.Start()
-
 		dirPath := path.Join("a/b/c/d/e", "z")
 		err = os.Mkdir(dirPath, os.ModeDir|os.ModePerm)
 		if err != nil {
@@ -99,11 +95,11 @@ func TestWatcher_createEvent(t *testing.T) {
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			if e != expectedEvent {
 				t.Fatalf("got %v, want %v", e, expectedEvent)
 			}
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")
@@ -123,11 +119,11 @@ func TestWatcher_createEvent(t *testing.T) {
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			if e != expectedEvent {
 				t.Fatalf("got %v, want %v", e, expectedEvent)
 			}
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")
@@ -158,8 +154,6 @@ func TestWatcher_createEvent(t *testing.T) {
 		}
 		defer w.Close()
 
-		events, errs := w.Start()
-
 		filePath := path.Join("a/b/c/d/e", "a.txt")
 		_, err = os.Create(filePath)
 		if err != nil {
@@ -167,9 +161,9 @@ func TestWatcher_createEvent(t *testing.T) {
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			t.Fatalf("unexpected event %v", e)
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")
@@ -199,8 +193,6 @@ func TestWatcher_createEvent(t *testing.T) {
 		}
 		defer w.Close()
 
-		events, errs := w.Start()
-
 		dirPath := path.Join("a/b/c/d/e", "z")
 		err = os.Mkdir(dirPath, os.ModeDir|os.ModePerm)
 		if err != nil {
@@ -208,9 +200,9 @@ func TestWatcher_createEvent(t *testing.T) {
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			t.Fatalf("unexpected event %v", e)
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")
@@ -224,9 +216,9 @@ func TestWatcher_createEvent(t *testing.T) {
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			t.Fatalf("unexpected event %v", e)
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")
@@ -262,8 +254,6 @@ func TestWatcher_deleteEvent(t *testing.T) {
 		}
 		defer w.Close()
 
-		events, errs := w.Start()
-
 		err = os.Remove(filePath)
 		if err != nil {
 			t.Fatalf("error while removing %v: %v", filePath, err)
@@ -275,11 +265,11 @@ func TestWatcher_deleteEvent(t *testing.T) {
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			if e != expectedEvent {
 				t.Fatalf("got %v, want %v", e, expectedEvent)
 			}
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")
@@ -319,8 +309,6 @@ func TestWatcher_deleteEvent(t *testing.T) {
 		}
 		defer w.Close()
 
-		events, errs := w.Start()
-
 		err = os.RemoveAll(dirPath)
 		if err != nil {
 			t.Fatalf("error while removing %v: %v", dirPath, err)
@@ -332,11 +320,11 @@ func TestWatcher_deleteEvent(t *testing.T) {
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			if e != expectedEvent {
 				t.Fatalf("got %v, want %v", e, expectedEvent)
 			}
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")
@@ -373,17 +361,15 @@ func TestWatcher_deleteEvent(t *testing.T) {
 		}
 		defer w.Close()
 
-		events, errs := w.Start()
-
 		err = os.Remove(filePath)
 		if err != nil {
 			t.Fatalf("error while removing %v: %v", filePath, err)
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			t.Fatalf("unexpected event %v", e)
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")
@@ -419,17 +405,15 @@ func TestWatcher_deleteEvent(t *testing.T) {
 		}
 		defer w.Close()
 
-		events, errs := w.Start()
-
 		err = os.RemoveAll(dirPath)
 		if err != nil {
 			t.Fatalf("error while removing %v: %v", dirPath, err)
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			t.Fatalf("unexpected event %v", e)
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")
@@ -470,8 +454,6 @@ func TestWatcher_modifyEvent(t *testing.T) {
 		}
 		defer w.Close()
 
-		events, errs := w.Start()
-
 		err = ioutil.WriteFile(filePath, []byte("foo"), os.ModePerm)
 		if err != nil {
 			t.Fatalf("unexpected error writing to %v: %v", filePath, err)
@@ -482,11 +464,11 @@ func TestWatcher_modifyEvent(t *testing.T) {
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			if e != expectedEvent {
 				t.Fatalf("got %v, want %v", e, expectedEvent)
 			}
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")
@@ -523,17 +505,15 @@ func TestWatcher_modifyEvent(t *testing.T) {
 		}
 		defer w.Close()
 
-		events, errs := w.Start()
-
 		err = ioutil.WriteFile(filePath, []byte("foo"), os.ModePerm)
 		if err != nil {
 			t.Fatalf("unexpected error writing to %v: %v", filePath, err)
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			t.Fatalf("unexpected event %v", e)
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")
@@ -570,8 +550,6 @@ func TestWatcher_modifyEvent(t *testing.T) {
 		}
 		defer w.Close()
 
-		events, errs := w.Start()
-
 		err = ioutil.WriteFile(filePath, []byte("foo"), os.ModePerm)
 		if err != nil {
 			t.Fatalf("unexpected error writing to %v: %v", filePath, err)
@@ -587,11 +565,11 @@ func TestWatcher_modifyEvent(t *testing.T) {
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			if e != expectedEvent {
 				t.Fatalf("got %v, want %v", e, expectedEvent)
 			}
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")
@@ -629,8 +607,6 @@ func TestWatcher_renameEvent(t *testing.T) {
 		}
 		defer w.Close()
 
-		events, errs := w.Start()
-
 		err = os.Rename(oldFilePath, newFilePath)
 		if err != nil {
 			t.Fatalf("unexpected error renaming %v to %v: %v", oldFilePath, newFilePath, err)
@@ -643,11 +619,11 @@ func TestWatcher_renameEvent(t *testing.T) {
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			if e != expectedEvent {
 				t.Fatalf("got %v, want %v", e, expectedEvent)
 			}
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")
@@ -685,8 +661,6 @@ func TestWatcher_renameEvent(t *testing.T) {
 		}
 		defer w.Close()
 
-		events, errs := w.Start()
-
 		err = os.Rename(oldFilePath, newFilePath)
 		if err != nil {
 			t.Fatalf("unexpected error renaming %v to %v: %v", oldFilePath, newFilePath, err)
@@ -699,11 +673,11 @@ func TestWatcher_renameEvent(t *testing.T) {
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			if e != expectedEvent {
 				t.Fatalf("got %v, want %v", e, expectedEvent)
 			}
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")
@@ -746,8 +720,6 @@ func TestWatcher_renameEvent(t *testing.T) {
 		}
 		defer w.Close()
 
-		events, errs := w.Start()
-
 		err = os.Rename(oldFilePath, newFilePath)
 		if err != nil {
 			t.Fatalf("unexpected error renaming %v to %v: %v", oldFilePath, newFilePath, err)
@@ -760,11 +732,11 @@ func TestWatcher_renameEvent(t *testing.T) {
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			if e != expectedEvent {
 				t.Fatalf("got %v, want %v", e, expectedEvent)
 			}
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")
@@ -803,17 +775,15 @@ func TestWatcher_renameEvent(t *testing.T) {
 		}
 		defer w.Close()
 
-		events, errs := w.Start()
-
 		err = os.Rename(oldFilePath, newFilePath)
 		if err != nil {
 			t.Fatalf("unexpected error renaming %v to %v: %v", oldFilePath, newFilePath, err)
 		}
 
 		select {
-		case e := <-events:
+		case e := <-w.Events():
 			t.Fatalf("unexpected event %v", e)
-		case err := <-errs:
+		case err := <-w.Errs():
 			t.Fatalf("unexpected err: %v", err)
 		case <-w.done:
 			t.Fatal("channel closed")

@@ -43,9 +43,6 @@ func Start(cts *cfop.CmdTermsSet) {
 		return
 	}
 
-	// The returned error is ignored here purposely
-	wEvents, wErrs := w.Start()
-
 	for {
 		// allCmdsForCurrentEvtCtx is used to indicate that all cmds related to the current event
 		// must be terminated as soon as possible.
@@ -93,14 +90,14 @@ func Start(cts *cfop.CmdTermsSet) {
 			}
 
 			return
-		case err := <-wErrs:
+		case err := <-w.Errs():
 			logs.Err.Printf("watcher: %v\n", err)
 
 			cancelAllCmdsForCurrentEvtCtx()
 			<-allCmdsForCurrentEvtDone
 
 			return
-		case e := <-wEvents:
+		case e := <-w.Events():
 			if shouldLogEvents {
 				logs.Evt.Println(e)
 			}

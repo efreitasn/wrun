@@ -24,6 +24,9 @@ type W struct {
 	tree          *watchedDirsTree
 	ignoreRegExps []*regexp.Regexp
 	done          chan struct{}
+	events        chan Event
+	errs          chan error
+	mvEvents      *mvEvents
 }
 
 // New creates a watcher for dirPath recursively, ignoring any path that matches at least one of ignoreRegExps.
@@ -53,15 +56,16 @@ func New(dirPath string, ignoreRegExps []*regexp.Regexp) (*W, error) {
 		return nil, err
 	}
 
+	w.events = make(chan Event)
+	w.errs = make(chan error)
+	w.mvEvents = newMvEvents()
+
+	w.startReading()
+
 	return w, nil
 }
 
-// Start starts the watcher.
-func (w *W) Start() (events chan Event, errs chan error) {
-	events = make(chan Event)
-	errs = make(chan error)
-	mvEvents := newMvEvents()
-
+func (w *W) startReading() {
 	readingErr := make(chan error)
 	readingRes := make(chan struct {
 		inotifyE unix.InotifyEvent
@@ -117,7 +121,7 @@ func (w *W) Start() (events chan Event, errs chan error) {
 	}()
 
 	go func() {
-		defer mvEvents.close()
+		defer w.mvEvents.close()
 		defer w.Close()
 
 		for {
@@ -125,7 +129,7 @@ func (w *W) Start() (events chan Event, errs chan error) {
 			case <-w.done:
 				return
 			case err := <-readingErr:
-				errs <- fmt.Errorf("reading from inotify instance's fd: %v", err)
+				w.errs <- fmt.Errorf("reading from inotify instance's fd: %v", err)
 
 				return
 			case res := <-readingRes:
@@ -159,14 +163,14 @@ func (w *W) Start() (events chan Event, errs chan error) {
 						_, match, err := w.addDir(res.name, parentDir.wd)
 						if !match {
 							if err != nil {
-								errs <- err
+								w.errs <- err
 
 								return
 							}
 
 							err = w.addDirsStartingAt(fileOrDirPath)
 							if err != nil {
-								errs <- err
+								w.errs <- err
 
 								return
 							}
@@ -199,15 +203,15 @@ func (w *W) Start() (events chan Event, errs chan error) {
 						path: fileOrDirPath,
 					}
 				case res.inotifyE.Mask&unix.IN_MOVED_FROM == unix.IN_MOVED_FROM:
-					mvEvents.addMvFrom(int(res.inotifyE.Cookie), res.name, int(res.inotifyE.Wd), isDir)
+					w.mvEvents.addMvFrom(int(res.inotifyE.Cookie), res.name, int(res.inotifyE.Wd), isDir)
 				case res.inotifyE.Mask&unix.IN_MOVED_TO == unix.IN_MOVED_TO:
-					mvEvents.addMvTo(int(res.inotifyE.Cookie), res.name, int(res.inotifyE.Wd), isDir)
+					w.mvEvents.addMvTo(int(res.inotifyE.Cookie), res.name, int(res.inotifyE.Wd), isDir)
 				}
 
 				if e != nil {
-					events <- e
+					w.events <- e
 				}
-			case mvEvent := <-mvEvents.queue:
+			case mvEvent := <-w.mvEvents.queue:
 				var oldPath, newPath string
 
 				hasMvFrom := mvEvent.oldName != ""
@@ -246,14 +250,14 @@ func (w *W) Start() (events chan Event, errs chan error) {
 						_, match, err := w.addDir(mvEvent.newName, mvEvent.newParentWd)
 						if !match {
 							if err != nil {
-								errs <- err
+								w.errs <- err
 
 								return
 							}
 
 							err = w.addDirsStartingAt(newPath)
 							if err != nil {
-								errs <- err
+								w.errs <- err
 
 								return
 							}
@@ -261,7 +265,7 @@ func (w *W) Start() (events chan Event, errs chan error) {
 					}
 				}
 
-				events <- RenameEvent{
+				w.events <- RenameEvent{
 					isDir:   mvEvent.isDir,
 					OldPath: oldPath,
 					path:    newPath,
@@ -269,8 +273,16 @@ func (w *W) Start() (events chan Event, errs chan error) {
 			}
 		}
 	}()
+}
 
-	return events, errs
+// Events returns the events channel.
+func (w *W) Events() chan Event {
+	return w.events
+}
+
+// Errs returns the errors channel.
+func (w *W) Errs() chan error {
+	return w.errs
 }
 
 // Wait blocks until the watcher is closed.
