@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/efreitasn/wrun/internal/logs"
+	"github.com/efreitasn/wrun/v4/internal/logs"
 )
 
 func TestStartCmd(t *testing.T) {

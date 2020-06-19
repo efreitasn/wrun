@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/efreitasn/cfop"
-	"github.com/efreitasn/wrun/internal/config"
-	"github.com/efreitasn/wrun/internal/logs"
-	"github.com/efreitasn/wrun/pkg/watcher"
+	"github.com/efreitasn/wrun/v4/internal/config"
+	"github.com/efreitasn/wrun/v4/internal/logs"
+	"github.com/efreitasn/wrun/v4/pkg/watcher"
 )
 
 // Start executes the start command.

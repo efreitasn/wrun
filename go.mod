@@ -1,4 +1,4 @@
-module github.com/efreitasn/wrun
+module github.com/efreitasn/wrun/v4
 
 go 1.14
 

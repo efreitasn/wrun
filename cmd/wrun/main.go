@@ -4,8 +4,8 @@ import (
 	"os"
 
 	"github.com/efreitasn/cfop"
-	"github.com/efreitasn/wrun/cmd/wrun/internal/cmds"
-	"github.com/efreitasn/wrun/internal/logs"
+	"github.com/efreitasn/wrun/v4/cmd/wrun/internal/cmds"
+	"github.com/efreitasn/wrun/v4/internal/logs"
 )
 
 func main() {

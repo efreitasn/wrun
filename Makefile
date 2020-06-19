@@ -4,6 +4,6 @@ build: export GOOS?=$(shell go env GOOS)
 build: export GOARCH?=$(shell go env GOARCH)
 build:
 	@echo "Building wrun@${VERSION} for ${GOOS}/${GOARCH}"
-	@go build -ldflags="-X github.com/efreitasn/wrun/cmd/wrun/internal/cmds.version=${VERSION}" \
-		-o ${NAME} github.com/efreitasn/wrun/cmd/wrun
+	@go build -ldflags="-X github.com/efreitasn/wrun/v4/cmd/wrun/internal/cmds.version=${VERSION}" \
+		-o ${NAME} github.com/efreitasn/wrun/v4/cmd/wrun
 	@echo "Build completed"
